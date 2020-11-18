@@ -170,9 +170,9 @@ The minimum supported version of Rust for `glam` is `1.36.0`.
 #[macro_use]
 mod macros;
 
-mod vector_traits;
 mod scalar_traits;
 mod storage;
+mod vector_traits;
 
 #[doc(hidden)]
 pub mod f32;

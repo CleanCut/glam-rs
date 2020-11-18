@@ -1,5 +1,19 @@
 use crate::XYZW;
 
+pub trait Mask4Consts {
+    const FALSE: Self;
+}
+
+pub trait Mask4 {
+    fn new(x: bool, y: bool, z: bool, w: bool) -> Self;
+    fn bitmask(self) -> u32;
+    fn any(self) -> bool;
+    fn all(self) -> bool;
+    fn and(self, other: Self) -> Self;
+    fn or(self, other: Self) -> Self;
+    fn not(self) -> Self;
+}
+
 pub trait Vector4Consts {
     const ZERO: Self;
     const ONE: Self;
@@ -11,6 +25,7 @@ pub trait Vector4Consts {
 
 pub trait Vector4 {
     type S: Sized;
+    type Mask: Sized;
 
     fn new(x: Self::S, y: Self::S, z: Self::S, w: Self::S) -> Self;
     fn splat(s: Self::S) -> Self;
@@ -18,29 +33,112 @@ pub trait Vector4 {
     fn from_slice_unaligned(slice: &[Self::S]) -> Self;
     fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
 
+    fn select(mask: Self::Mask, a: Self, b: Self) -> Self;
+
+    fn cmpeq(self, other: Self) -> Self::Mask;
+    fn cmpne(self, other: Self) -> Self::Mask;
+    fn cmpge(self, other: Self) -> Self::Mask;
+    fn cmpgt(self, other: Self) -> Self::Mask;
+    fn cmple(self, other: Self) -> Self::Mask;
+    fn cmplt(self, other: Self) -> Self::Mask;
+
     fn deref(&self) -> &XYZW<Self::S>;
     fn deref_mut(&mut self) -> &mut XYZW<Self::S>;
 
     fn add(self, other: Self) -> Self;
     fn div(self, other: Self) -> Self;
     fn mul(self, other: Self) -> Self;
+    fn mul_add(self, a: Self, b: Self) -> Self;
     fn sub(self, other: Self) -> Self;
 
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
+
+    fn min_element(self) -> Self::S;
+    fn max_element(self) -> Self::S;
 }
 
 pub trait Float4: Vector4 {
+    fn abs(self) -> Self;
+    fn ceil(self) -> Self;
     fn dot(self, other: Self) -> Self::S;
+    fn floor(self) -> Self;
+    fn is_nan(self) -> Self::Mask;
     fn length(self) -> Self::S;
     fn length_recip(self) -> Self::S;
+    fn neg(self) -> Self;
     fn normalize(self) -> Self;
+    fn recip(self) -> Self;
+    fn round(self) -> Self;
+    fn signum(self) -> Self;
 }
 
 mod scalar {
     use crate::scalar_traits::{Float, Num, NumConsts};
-    use crate::vector_traits::{Float4, Vector4, Vector4Consts};
+    use crate::vector_traits::{Float4, Mask4, Mask4Consts, Vector4, Vector4Consts};
     use crate::XYZW;
+
+    impl Mask4Consts for XYZW<bool> {
+        const FALSE: Self = Self {
+            x: false,
+            y: false,
+            z: false,
+            w: false,
+        };
+    }
+
+    impl Mask4 for XYZW<bool> {
+        #[inline]
+        fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
+            Self { x, y, z, w }
+        }
+
+        #[inline]
+        fn bitmask(self) -> u32 {
+            (self.x as u32) | (self.y as u32) << 1 | (self.z as u32) << 2 | (self.w as u32) << 3
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            self.x || self.y || self.z || self.w
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            self.x && self.y && self.z && self.w
+        }
+
+        #[inline]
+        fn and(self, other: Self) -> Self {
+            Self {
+                x: self.x && other.x,
+                y: self.y && other.y,
+                z: self.z && other.z,
+                w: self.w && other.w,
+            }
+        }
+
+        #[inline]
+        fn or(self, other: Self) -> Self {
+            Self {
+                x: self.x || other.x,
+                y: self.y || other.y,
+                z: self.z || other.z,
+                w: self.w || other.w,
+            }
+        }
+
+        #[inline]
+        fn not(self) -> Self {
+            Self {
+                x: !self.x,
+                y: !self.y,
+                z: !self.z,
+                w: !self.w,
+            }
+        }
+    }
+
     impl<T: Float> Vector4Consts for XYZW<T> {
         const ZERO: Self = Self {
             x: <T as NumConsts>::ZERO,
@@ -82,11 +180,14 @@ mod scalar {
 
     impl<T: Num> Vector4 for XYZW<T> {
         type S = T;
+        type Mask = XYZW<bool>;
 
+        #[inline]
         fn new(x: T, y: T, z: T, w: T) -> Self {
             Self { x, y, z, w }
         }
 
+        #[inline]
         fn splat(s: T) -> Self {
             Self {
                 x: s,
@@ -96,6 +197,77 @@ mod scalar {
             }
         }
 
+        #[inline]
+        fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self {
+            Self {
+                x: if mask.x { if_true.x } else { if_false.x },
+                y: if mask.y { if_true.y } else { if_false.y },
+                z: if mask.z { if_true.z } else { if_false.z },
+                w: if mask.w { if_true.w } else { if_false.w },
+            }
+        }
+
+        #[inline]
+        fn cmpeq(self, other: Self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.eq(&other.x),
+                y: self.y.eq(&other.y),
+                z: self.z.eq(&other.z),
+                w: self.w.eq(&other.w),
+            }
+        }
+
+        #[inline]
+        fn cmpne(self, other: Self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.ne(&other.x),
+                y: self.y.ne(&other.y),
+                z: self.z.ne(&other.z),
+                w: self.w.ne(&other.w),
+            }
+        }
+
+        #[inline]
+        fn cmpge(self, other: Self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.ge(&other.x),
+                y: self.y.ge(&other.y),
+                z: self.z.ge(&other.z),
+                w: self.w.ge(&other.w),
+            }
+        }
+
+        #[inline]
+        fn cmpgt(self, other: Self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.gt(&other.x),
+                y: self.y.gt(&other.y),
+                z: self.z.gt(&other.z),
+                w: self.w.gt(&other.w),
+            }
+        }
+
+        #[inline]
+        fn cmple(self, other: Self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.le(&other.x),
+                y: self.y.le(&other.y),
+                z: self.z.le(&other.z),
+                w: self.w.le(&other.w),
+            }
+        }
+
+        #[inline]
+        fn cmplt(self, other: Self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.lt(&other.x),
+                y: self.y.lt(&other.y),
+                z: self.z.lt(&other.z),
+                w: self.w.lt(&other.w),
+            }
+        }
+
+        #[inline]
         fn from_slice_unaligned(slice: &[Self::S]) -> Self {
             Self {
                 x: slice[0],
@@ -105,6 +277,7 @@ mod scalar {
             }
         }
 
+        #[inline]
         fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
             slice[0] = self.x;
             slice[1] = self.y;
@@ -112,14 +285,17 @@ mod scalar {
             slice[3] = self.w;
         }
 
+        #[inline]
         fn deref(&self) -> &XYZW<Self::S> {
             self
         }
 
+        #[inline]
         fn deref_mut(&mut self) -> &mut XYZW<Self::S> {
             self
         }
 
+        #[inline]
         fn add(self, other: Self) -> Self {
             Self {
                 x: self.x + other.x,
@@ -129,6 +305,7 @@ mod scalar {
             }
         }
 
+        #[inline]
         fn div(self, other: Self) -> Self {
             Self {
                 x: self.x / other.x,
@@ -138,6 +315,7 @@ mod scalar {
             }
         }
 
+        #[inline]
         fn mul(self, other: Self) -> Self {
             Self {
                 x: self.x * other.x,
@@ -147,6 +325,17 @@ mod scalar {
             }
         }
 
+        #[inline]
+        fn mul_add(self, a: Self, b: Self) -> Self {
+            Self {
+                x: (self.x * a.x) + b.x,
+                y: (self.y * a.y) + b.y,
+                z: (self.z * a.z) + b.z,
+                w: (self.w * a.w) + b.w,
+            }
+        }
+
+        #[inline]
         fn sub(self, other: Self) -> Self {
             Self {
                 x: self.x - other.x,
@@ -156,6 +345,7 @@ mod scalar {
             }
         }
 
+        #[inline]
         fn min(self, other: Self) -> Self {
             Self {
                 x: self.x.min(other.x),
@@ -165,6 +355,7 @@ mod scalar {
             }
         }
 
+        #[inline]
         fn max(self, other: Self) -> Self {
             Self {
                 x: self.x.max(other.x),
@@ -173,36 +364,183 @@ mod scalar {
                 w: self.w.max(other.w),
             }
         }
+
+        #[inline]
+        fn min_element(self) -> Self::S {
+            self.x.min(self.y.min(self.z.min(self.w)))
+        }
+
+        #[inline]
+        fn max_element(self) -> Self::S {
+            self.x.max(self.y.max(self.z.min(self.w)))
+        }
     }
 
     impl<T: Float> Float4 for XYZW<T> {
+        #[inline]
+        fn is_nan(self) -> Self::Mask {
+            Self::Mask {
+                x: self.x.is_nan(),
+                y: self.y.is_nan(),
+                z: self.z.is_nan(),
+                w: self.w.is_nan(),
+            }
+        }
+
+        #[inline]
+        fn abs(self) -> Self {
+            Self {
+                x: self.x.abs(),
+                y: self.y.abs(),
+                z: self.z.abs(),
+                w: self.w.abs(),
+            }
+        }
+
+        #[inline]
+        fn floor(self) -> Self {
+            Self {
+                x: self.x.floor(),
+                y: self.y.floor(),
+                z: self.z.floor(),
+                w: self.w.floor(),
+            }
+        }
+
+        #[inline]
+        fn ceil(self) -> Self {
+            Self {
+                x: self.x.ceil(),
+                y: self.y.ceil(),
+                z: self.z.ceil(),
+                w: self.w.ceil(),
+            }
+        }
+
+        #[inline]
+        fn round(self) -> Self {
+            Self {
+                x: self.x.round(),
+                y: self.y.round(),
+                z: self.z.round(),
+                w: self.w.round(),
+            }
+        }
+
+        #[inline]
+        fn neg(self) -> Self {
+            Self {
+                x: -self.x,
+                y: -self.y,
+                z: -self.z,
+                w: -self.w,
+            }
+        }
+
+        #[inline]
+        fn recip(self) -> Self {
+            Self {
+                x: self.x.recip(),
+                y: self.y.recip(),
+                z: self.z.recip(),
+                w: self.w.recip(),
+            }
+        }
+
+        #[inline]
+        fn signum(self) -> Self {
+            Self {
+                x: self.x.signum(),
+                y: self.y.signum(),
+                z: self.z.signum(),
+                w: self.w.signum(),
+            }
+        }
+
+        #[inline]
         fn dot(self, other: Self) -> Self::S {
             (self.x * other.x) + (self.y * other.y) + (self.z * other.z) + (self.w * other.w)
         }
 
+        #[inline]
         fn length(self) -> Self::S {
             self.dot(self).sqrt()
         }
 
+        #[inline]
         fn length_recip(self) -> Self::S {
-            <T as NumConsts>::ONE / self.length()
+            self.length().recip()
         }
 
+        #[inline]
         fn normalize(self) -> Self {
             self * self.length_recip()
         }
     }
 }
 
-#[cfg(target_feature = "sse2")]
+#[cfg(all(target_feature = "sse2", not(feature = "scalar-math")))]
 mod sse2 {
     #[cfg(target_arch = "x86")]
     use core::arch::x86::*;
     #[cfg(target_arch = "x86_64")]
     use core::arch::x86_64::*;
 
+    use super::{Float4, Mask4, Mask4Consts, Vector4, Vector4Consts};
     use crate::{const_m128, XYZW};
-    use super::{Float4, Vector4, Vector4Consts};
+
+    impl Mask4Consts for __m128 {
+        const FALSE: __m128 = const_m128!([0.0; 4]);
+    }
+
+    impl Mask4 for __m128 {
+        #[inline]
+        fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
+            // A SSE2 mask can be any bit pattern but for the `Vec4Mask` implementation of select we
+            // expect either 0 or 0xff_ff_ff_ff. This should be a safe assumption as this type can only
+            // be created via this function or by `Vec4` methods.
+
+            const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
+            unsafe {
+                _mm_set_ps(
+                    f32::from_bits(MASK[w as usize]),
+                    f32::from_bits(MASK[z as usize]),
+                    f32::from_bits(MASK[y as usize]),
+                    f32::from_bits(MASK[x as usize]),
+                )
+            }
+        }
+
+        #[inline]
+        fn bitmask(self) -> u32 {
+            unsafe { _mm_movemask_ps(self) as u32 }
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            unsafe { _mm_movemask_ps(self) != 0 }
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            unsafe { _mm_movemask_ps(self) == 0xf }
+        }
+
+        #[inline]
+        fn and(self, other: Self) -> Self {
+            unsafe { _mm_and_ps(self, other) }
+        }
+
+        #[inline]
+        fn or(self, other: Self) -> Self {
+            unsafe { _mm_or_ps(self, other) }
+        }
+
+        #[inline]
+        fn not(self) -> Self {
+            unsafe { _mm_andnot_ps(self, _mm_set_ps1(f32::from_bits(0xff_ff_ff_ff))) }
+        }
+    }
 
     #[inline]
     unsafe fn dot_as_m128(lhs: __m128, rhs: __m128) -> __m128 {
@@ -233,20 +571,60 @@ mod sse2 {
 
     impl Vector4 for __m128 {
         type S = f32;
+        type Mask = __m128;
 
+        #[inline]
         fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
             unsafe { _mm_set_ps(w, z, y, x) }
         }
 
+        #[inline]
         fn splat(s: f32) -> Self {
             unsafe { _mm_set_ps1(s) }
         }
 
+        #[inline]
+        fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self {
+            unsafe { _mm_or_ps(_mm_andnot_ps(mask, if_false), _mm_and_ps(if_true, mask)) }
+        }
+
+        #[inline]
+        fn cmpeq(self, other: Self) -> Self::Mask {
+            unsafe { _mm_cmpeq_ps(self, other) }
+        }
+
+        #[inline]
+        fn cmpne(self, other: Self) -> Self::Mask {
+            unsafe { _mm_cmpneq_ps(self, other) }
+        }
+
+        #[inline]
+        fn cmpge(self, other: Self) -> Self::Mask {
+            unsafe { _mm_cmpge_ps(self, other) }
+        }
+
+        #[inline]
+        fn cmpgt(self, other: Self) -> Self::Mask {
+            unsafe { _mm_cmpgt_ps(self, other) }
+        }
+
+        #[inline]
+        fn cmple(self, other: Self) -> Self::Mask {
+            unsafe { _mm_cmple_ps(self, other) }
+        }
+
+        #[inline]
+        fn cmplt(self, other: Self) -> Self::Mask {
+            unsafe { _mm_cmplt_ps(self, other) }
+        }
+
+        #[inline]
         fn from_slice_unaligned(slice: &[Self::S]) -> Self {
             assert!(slice.len() >= 4);
             unsafe { _mm_loadu_ps(slice.as_ptr()) }
         }
 
+        #[inline]
         fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
             unsafe {
                 assert!(slice.len() >= 4);
@@ -254,48 +632,131 @@ mod sse2 {
             }
         }
 
+        #[inline]
         fn deref(&self) -> &XYZW<Self::S> {
             unsafe { &*(self as *const Self as *const XYZW<Self::S>) }
         }
 
+        #[inline]
         fn deref_mut(&mut self) -> &mut XYZW<Self::S> {
             unsafe { &mut *(self as *mut Self as *mut XYZW<Self::S>) }
         }
 
+        #[inline]
         fn add(self, other: Self) -> Self {
             unsafe { _mm_add_ps(self, other) }
         }
 
+        #[inline]
         fn div(self, other: Self) -> Self {
             unsafe { _mm_div_ps(self, other) }
         }
 
+        #[inline]
         fn mul(self, other: Self) -> Self {
             unsafe { _mm_mul_ps(self, other) }
         }
 
+        #[inline]
+        fn mul_add(self, a: Self, b: Self) -> Self {
+            unsafe { _mm_add_ps(_mm_mul_ps(self, a), b) }
+        }
+
+        #[inline]
         fn sub(self, other: Self) -> Self {
             unsafe { _mm_sub_ps(self, other) }
         }
 
+        #[inline]
         fn min(self, other: Self) -> Self {
+            unsafe { _mm_min_ps(self, other) }
+        }
+
+        #[inline]
+        fn max(self, other: Self) -> Self {
+            unsafe { _mm_max_ps(self, other) }
+        }
+
+        #[inline]
+        fn min_element(self) -> Self::S {
             unsafe {
-                _mm_min_ps(self, other)
+                let v = self;
+                let v = _mm_min_ps(v, _mm_shuffle_ps(v, v, 0b00_00_11_10));
+                let v = _mm_min_ps(v, _mm_shuffle_ps(v, v, 0b00_00_00_01));
+                _mm_cvtss_f32(v)
             }
         }
 
-        fn max(self, other: Self) -> Self {
+        #[inline]
+        fn max_element(self) -> Self::S {
             unsafe {
-                _mm_max_ps(self, other)
+                let v = self;
+                let v = _mm_max_ps(v, _mm_shuffle_ps(v, v, 0b00_00_11_10));
+                let v = _mm_max_ps(v, _mm_shuffle_ps(v, v, 0b00_00_00_01));
+                _mm_cvtss_f32(v)
             }
         }
     }
 
     impl Float4 for __m128 {
+        #[inline]
+        fn is_nan(self) -> Self::Mask {
+            unsafe { _mm_cmpunord_ps(self, self) }
+        }
+
+        #[inline]
+        fn abs(self) -> Self {
+            unsafe { _mm_and_ps(self, _mm_castsi128_ps(_mm_set1_epi32(0x7f_ff_ff_ff))) }
+        }
+
+        #[inline]
+        fn round(self) -> Self {
+            unsafe {
+                use crate::f32::funcs::sse2::m128_round;
+                m128_round(self)
+            }
+        }
+
+        #[inline]
+        fn floor(self) -> Self {
+            unsafe {
+                use crate::f32::funcs::sse2::m128_floor;
+                m128_floor(self)
+            }
+        }
+
+        #[inline]
+        fn ceil(self) -> Self {
+            unsafe {
+                use crate::f32::funcs::sse2::m128_ceil;
+                m128_ceil(self)
+            }
+        }
+
+        #[inline]
+        fn recip(self) -> Self {
+            unsafe { _mm_div_ps(Self::ONE, self) }
+        }
+
+        #[inline]
+        fn signum(self) -> Self {
+            const NEG_ONE: __m128 = const_m128!([-1.0; 4]);
+            let mask = self.cmpge(Self::ZERO);
+            let result = Self::select(mask, Self::ONE, NEG_ONE);
+            Self::select(self.is_nan(), self, result)
+        }
+
+        #[inline]
+        fn neg(self) -> Self {
+            unsafe { _mm_sub_ps(Self::ZERO, self) }
+        }
+
+        #[inline]
         fn dot(self, other: Self) -> f32 {
             unsafe { _mm_cvtss_f32(dot_as_m128(self, other)) }
         }
 
+        #[inline]
         fn length(self) -> f32 {
             unsafe {
                 let dot = dot_as_m128(self, self);
@@ -303,6 +764,7 @@ mod sse2 {
             }
         }
 
+        #[inline]
         fn length_recip(self) -> f32 {
             unsafe {
                 let dot = dot_as_m128(self, self);
@@ -311,6 +773,7 @@ mod sse2 {
             }
         }
 
+        #[inline]
         fn normalize(self) -> Self {
             unsafe {
                 let dot = dot_as_m128(self, self);
