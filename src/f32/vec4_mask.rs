@@ -1,4 +1,4 @@
-use crate::vector_traits::{Mask4, Mask4Consts};
+use crate::vector_traits::{MaskVector, MaskVector4, MaskVectorConsts};
 use crate::Vec4;
 use core::{fmt, ops::*};
 
@@ -6,7 +6,6 @@ use core::{fmt, ops::*};
 use core::arch::x86::*;
 #[cfg(all(vec4_sse2, target_arch = "x86_64"))]
 use core::arch::x86_64::*;
-#[cfg(vec4_sse2)]
 use core::{cmp::Ordering, hash};
 
 #[cfg(all(target_feature = "sse2", not(feature = "scalar-math")))]
@@ -69,7 +68,7 @@ impl Vec4Mask {
     /// Creates a new `Vec4Mask`.
     #[inline]
     pub fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
-        Self(Mask4::new(x, y, z, w))
+        Self(MaskVector4::new(x, y, z, w))
     }
 
     /// Returns a bitmask with the lowest four bits set from the elements of `self`.
@@ -148,24 +147,12 @@ impl Not for Vec4Mask {
 
 impl fmt::Debug for Vec4Mask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[cfg(vec4_sse2)]
-        {
-            let arr = self.as_ref();
-            write!(
-                f,
-                "Vec4Mask({:#x}, {:#x}, {:#x}, {:#x})",
-                arr[0], arr[1], arr[2], arr[3]
-            )
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            write!(
-                f,
-                "Vec4Mask({:#x}, {:#x}, {:#x}, {:#x})",
-                self.0, self.1, self.2, self.3
-            )
-        }
+        let arr = self.as_ref();
+        write!(
+            f,
+            "Vec4Mask({:#x}, {:#x}, {:#x}, {:#x})",
+            arr[0], arr[1], arr[2], arr[3]
+        )
     }
 }
 
@@ -190,8 +177,7 @@ impl From<Vec4Mask> for [u32; 4] {
     }
 }
 
-#[cfg(vec4_sse2)]
-impl From<Vec4Mask> for __m128 {
+impl From<Vec4Mask> for Inner {
     #[inline]
     fn from(t: Vec4Mask) -> Self {
         t.0

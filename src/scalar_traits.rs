@@ -1,15 +1,9 @@
 // use crate::XYZ;
-use crate::XYZW;
+// use crate::XYZW;
 use core::{
     marker::Sized,
     ops::{Add, Div, Mul, Neg, Sub},
 };
-
-pub trait MaskConsts: Sized {
-    const FALSE: Self;
-}
-
-pub trait Mask: MaskConsts + Copy + Clone {}
 
 pub trait NumConsts: Sized {
     const ZERO: Self;
@@ -145,6 +139,7 @@ impl Float for f64 {
     }
 }
 
+/*
 impl<T: Num> Add for XYZW<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
@@ -216,3 +211,4 @@ impl<T: Num> Sub for XYZW<T> {
         }
     }
 }
+*/

@@ -1,11 +1,10 @@
-use crate::XYZW;
+use crate::{XYZ, XYZW};
 
-pub trait Mask4Consts {
+pub trait MaskVectorConsts: Sized {
     const FALSE: Self;
 }
 
-pub trait Mask4 {
-    fn new(x: bool, y: bool, z: bool, w: bool) -> Self;
+pub trait MaskVector: MaskVectorConsts {
     fn bitmask(self) -> u32;
     fn any(self) -> bool;
     fn all(self) -> bool;
@@ -14,7 +13,11 @@ pub trait Mask4 {
     fn not(self) -> Self;
 }
 
-pub trait Vector4Consts {
+pub trait MaskVector4: MaskVector {
+    fn new(x: bool, y: bool, z: bool, w: bool) -> Self;
+}
+
+pub trait VectorConsts {
     const ZERO: Self;
     const ONE: Self;
     const UNIT_X: Self;
@@ -23,11 +26,10 @@ pub trait Vector4Consts {
     const UNIT_W: Self;
 }
 
-pub trait Vector4 {
+pub trait Vector {
     type S: Sized;
     type Mask: Sized;
 
-    fn new(x: Self::S, y: Self::S, z: Self::S, w: Self::S) -> Self;
     fn splat(s: Self::S) -> Self;
 
     fn from_slice_unaligned(slice: &[Self::S]) -> Self;
@@ -51,6 +53,8 @@ pub trait Vector4 {
     fn mul_add(self, a: Self, b: Self) -> Self;
     fn sub(self, other: Self) -> Self;
 
+    fn scale(self, other: Self::S) -> Self;
+
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
 
@@ -58,7 +62,15 @@ pub trait Vector4 {
     fn max_element(self) -> Self::S;
 }
 
-pub trait Float4: Vector4 {
+pub trait Vector4: Vector {
+    fn new(x: Self::S, y: Self::S, z: Self::S, w: Self::S) -> Self;
+    fn from_array(a: [Self::S; 4]) -> Self;
+    fn into_array(self) -> [Self::S; 4];
+    fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self;
+    fn into_tuple(self) -> (Self::S, Self::S, Self::S, Self::S);
+}
+
+pub trait FloatVector: Vector {
     fn abs(self) -> Self;
     fn ceil(self) -> Self;
     fn dot(self, other: Self) -> Self::S;
@@ -73,12 +85,46 @@ pub trait Float4: Vector4 {
     fn signum(self) -> Self;
 }
 
+pub trait Quaternion: FloatVector {
+    fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self;
+}
+
 mod scalar {
     use crate::scalar_traits::{Float, Num, NumConsts};
-    use crate::vector_traits::{Float4, Mask4, Mask4Consts, Vector4, Vector4Consts};
+    use crate::vector_traits::{
+        FloatVector, MaskVector, MaskVector4, MaskVectorConsts, Vector, Vector4, VectorConsts,
+    };
     use crate::XYZW;
 
-    impl Mask4Consts for XYZW<bool> {
+    impl<T> XYZW<T> {
+        #[inline(always)]
+        fn map<D, F>(self, f: F) -> XYZW<D>
+        where
+            F: Fn(T) -> D,
+        {
+            XYZW {
+                x: f(self.x),
+                y: f(self.y),
+                z: f(self.z),
+                w: f(self.w),
+            }
+        }
+
+        #[inline(always)]
+        fn map2<D, F>(self, other: Self, f: F) -> XYZW<D>
+        where
+            F: Fn(T, T) -> D,
+        {
+            XYZW {
+                x: f(self.x, other.x),
+                y: f(self.y, other.y),
+                z: f(self.z, other.z),
+                w: f(self.w, other.w),
+            }
+        }
+    }
+
+    impl MaskVectorConsts for XYZW<bool> {
         const FALSE: Self = Self {
             x: false,
             y: false,
@@ -87,12 +133,7 @@ mod scalar {
         };
     }
 
-    impl Mask4 for XYZW<bool> {
-        #[inline]
-        fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
-            Self { x, y, z, w }
-        }
-
+    impl MaskVector for XYZW<bool> {
         #[inline]
         fn bitmask(self) -> u32 {
             (self.x as u32) | (self.y as u32) << 1 | (self.z as u32) << 2 | (self.w as u32) << 3
@@ -110,36 +151,28 @@ mod scalar {
 
         #[inline]
         fn and(self, other: Self) -> Self {
-            Self {
-                x: self.x && other.x,
-                y: self.y && other.y,
-                z: self.z && other.z,
-                w: self.w && other.w,
-            }
+            self.map2(other, |a, b| a && b)
         }
 
         #[inline]
         fn or(self, other: Self) -> Self {
-            Self {
-                x: self.x || other.x,
-                y: self.y || other.y,
-                z: self.z || other.z,
-                w: self.w || other.w,
-            }
+            self.map2(other, |a, b| a || b)
         }
 
         #[inline]
         fn not(self) -> Self {
-            Self {
-                x: !self.x,
-                y: !self.y,
-                z: !self.z,
-                w: !self.w,
-            }
+            self.map(|a| !a)
         }
     }
 
-    impl<T: Float> Vector4Consts for XYZW<T> {
+    impl MaskVector4 for XYZW<bool> {
+        #[inline]
+        fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
+            Self { x, y, z, w }
+        }
+    }
+
+    impl<T: Float> VectorConsts for XYZW<T> {
         const ZERO: Self = Self {
             x: <T as NumConsts>::ZERO,
             y: <T as NumConsts>::ZERO,
@@ -179,13 +212,40 @@ mod scalar {
     }
 
     impl<T: Num> Vector4 for XYZW<T> {
-        type S = T;
-        type Mask = XYZW<bool>;
-
         #[inline]
         fn new(x: T, y: T, z: T, w: T) -> Self {
             Self { x, y, z, w }
         }
+
+        #[inline]
+        fn from_array(a: [Self::S; 4]) -> Self {
+            Self {
+                x: a[0],
+                y: a[1],
+                z: a[2],
+                w: a[3],
+            }
+        }
+
+        #[inline]
+        fn into_array(self) -> [Self::S; 4] {
+            [self.x, self.y, self.z, self.w]
+        }
+
+        #[inline]
+        fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self {
+            Self::new(t.0, t.1, t.2, t.3)
+        }
+
+        #[inline]
+        fn into_tuple(self) -> (Self::S, Self::S, Self::S, Self::S) {
+            (self.x, self.y, self.z, self.w)
+        }
+    }
+
+    impl<T: Num> Vector for XYZW<T> {
+        type S = T;
+        type Mask = XYZW<bool>;
 
         #[inline]
         fn splat(s: T) -> Self {
@@ -209,62 +269,32 @@ mod scalar {
 
         #[inline]
         fn cmpeq(self, other: Self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.eq(&other.x),
-                y: self.y.eq(&other.y),
-                z: self.z.eq(&other.z),
-                w: self.w.eq(&other.w),
-            }
+            self.map2(other, |a, b| a.eq(&b))
         }
 
         #[inline]
         fn cmpne(self, other: Self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.ne(&other.x),
-                y: self.y.ne(&other.y),
-                z: self.z.ne(&other.z),
-                w: self.w.ne(&other.w),
-            }
+            self.map2(other, |a, b| a.ne(&b))
         }
 
         #[inline]
         fn cmpge(self, other: Self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.ge(&other.x),
-                y: self.y.ge(&other.y),
-                z: self.z.ge(&other.z),
-                w: self.w.ge(&other.w),
-            }
+            self.map2(other, |a, b| a.ge(&b))
         }
 
         #[inline]
         fn cmpgt(self, other: Self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.gt(&other.x),
-                y: self.y.gt(&other.y),
-                z: self.z.gt(&other.z),
-                w: self.w.gt(&other.w),
-            }
+            self.map2(other, |a, b| a.gt(&b))
         }
 
         #[inline]
         fn cmple(self, other: Self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.le(&other.x),
-                y: self.y.le(&other.y),
-                z: self.z.le(&other.z),
-                w: self.w.le(&other.w),
-            }
+            self.map2(other, |a, b| a.le(&b))
         }
 
         #[inline]
         fn cmplt(self, other: Self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.lt(&other.x),
-                y: self.y.lt(&other.y),
-                z: self.z.lt(&other.z),
-                w: self.w.lt(&other.w),
-            }
+            self.map2(other, |a, b| a.lt(&b))
         }
 
         #[inline]
@@ -297,32 +327,17 @@ mod scalar {
 
         #[inline]
         fn add(self, other: Self) -> Self {
-            Self {
-                x: self.x + other.x,
-                y: self.y + other.y,
-                z: self.z + other.z,
-                w: self.w + other.w,
-            }
+            self.map2(other, |a, b| a + b)
         }
 
         #[inline]
         fn div(self, other: Self) -> Self {
-            Self {
-                x: self.x / other.x,
-                y: self.y / other.y,
-                z: self.z / other.z,
-                w: self.w / other.w,
-            }
+            self.map2(other, |a, b| a / b)
         }
 
         #[inline]
         fn mul(self, other: Self) -> Self {
-            Self {
-                x: self.x * other.x,
-                y: self.y * other.y,
-                z: self.z * other.z,
-                w: self.w * other.w,
-            }
+            self.map2(other, |a, b| a * b)
         }
 
         #[inline]
@@ -337,32 +352,21 @@ mod scalar {
 
         #[inline]
         fn sub(self, other: Self) -> Self {
-            Self {
-                x: self.x - other.x,
-                y: self.y - other.y,
-                z: self.z - other.z,
-                w: self.w - other.w,
-            }
+            self.map2(other, |a, b| a - b)
+        }
+
+        fn scale(self, other: Self::S) -> Self {
+            self.map(|a| a * other)
         }
 
         #[inline]
         fn min(self, other: Self) -> Self {
-            Self {
-                x: self.x.min(other.x),
-                y: self.y.min(other.y),
-                z: self.z.min(other.z),
-                w: self.w.min(other.w),
-            }
+            self.map2(other, |a, b| a.min(b))
         }
 
         #[inline]
         fn max(self, other: Self) -> Self {
-            Self {
-                x: self.x.max(other.x),
-                y: self.y.max(other.y),
-                z: self.z.max(other.z),
-                w: self.w.max(other.w),
-            }
+            self.map2(other, |a, b| a.max(b))
         }
 
         #[inline]
@@ -376,85 +380,45 @@ mod scalar {
         }
     }
 
-    impl<T: Float> Float4 for XYZW<T> {
+    impl<T: Float> FloatVector for XYZW<T> {
         #[inline]
         fn is_nan(self) -> Self::Mask {
-            Self::Mask {
-                x: self.x.is_nan(),
-                y: self.y.is_nan(),
-                z: self.z.is_nan(),
-                w: self.w.is_nan(),
-            }
+            self.map(Float::is_nan)
         }
 
         #[inline]
         fn abs(self) -> Self {
-            Self {
-                x: self.x.abs(),
-                y: self.y.abs(),
-                z: self.z.abs(),
-                w: self.w.abs(),
-            }
+            self.map(Float::abs)
         }
 
         #[inline]
         fn floor(self) -> Self {
-            Self {
-                x: self.x.floor(),
-                y: self.y.floor(),
-                z: self.z.floor(),
-                w: self.w.floor(),
-            }
+            self.map(Float::floor)
         }
 
         #[inline]
         fn ceil(self) -> Self {
-            Self {
-                x: self.x.ceil(),
-                y: self.y.ceil(),
-                z: self.z.ceil(),
-                w: self.w.ceil(),
-            }
+            self.map(Float::ceil)
         }
 
         #[inline]
         fn round(self) -> Self {
-            Self {
-                x: self.x.round(),
-                y: self.y.round(),
-                z: self.z.round(),
-                w: self.w.round(),
-            }
+            self.map(Float::round)
         }
 
         #[inline]
         fn neg(self) -> Self {
-            Self {
-                x: -self.x,
-                y: -self.y,
-                z: -self.z,
-                w: -self.w,
-            }
+            self.map(|a| a.neg())
         }
 
         #[inline]
         fn recip(self) -> Self {
-            Self {
-                x: self.x.recip(),
-                y: self.y.recip(),
-                z: self.z.recip(),
-                w: self.w.recip(),
-            }
+            self.map(Float::recip)
         }
 
         #[inline]
         fn signum(self) -> Self {
-            Self {
-                x: self.x.signum(),
-                y: self.y.signum(),
-                z: self.z.signum(),
-                w: self.w.signum(),
-            }
+            self.map(Float::signum)
         }
 
         #[inline]
@@ -474,7 +438,7 @@ mod scalar {
 
         #[inline]
         fn normalize(self) -> Self {
-            self * self.length_recip()
+            self.scale(self.length_recip())
         }
     }
 }
@@ -486,31 +450,18 @@ mod sse2 {
     #[cfg(target_arch = "x86_64")]
     use core::arch::x86_64::*;
 
-    use super::{Float4, Mask4, Mask4Consts, Vector4, Vector4Consts};
+    use super::{
+        FloatVector, MaskVector, MaskVector4, MaskVectorConsts, Vector, Vector4, VectorConsts,
+    };
+    use crate::Align16;
     use crate::{const_m128, XYZW};
+    use core::mem::MaybeUninit;
 
-    impl Mask4Consts for __m128 {
+    impl MaskVectorConsts for __m128 {
         const FALSE: __m128 = const_m128!([0.0; 4]);
     }
 
-    impl Mask4 for __m128 {
-        #[inline]
-        fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
-            // A SSE2 mask can be any bit pattern but for the `Vec4Mask` implementation of select we
-            // expect either 0 or 0xff_ff_ff_ff. This should be a safe assumption as this type can only
-            // be created via this function or by `Vec4` methods.
-
-            const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
-            unsafe {
-                _mm_set_ps(
-                    f32::from_bits(MASK[w as usize]),
-                    f32::from_bits(MASK[z as usize]),
-                    f32::from_bits(MASK[y as usize]),
-                    f32::from_bits(MASK[x as usize]),
-                )
-            }
-        }
-
+    impl MaskVector for __m128 {
         #[inline]
         fn bitmask(self) -> u32 {
             unsafe { _mm_movemask_ps(self) as u32 }
@@ -542,8 +493,27 @@ mod sse2 {
         }
     }
 
+    impl MaskVector4 for __m128 {
+        #[inline]
+        fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
+            // A SSE2 mask can be any bit pattern but for the `Vec4Mask` implementation of select we
+            // expect either 0 or 0xff_ff_ff_ff. This should be a safe assumption as this type can only
+            // be created via this function or by `Vec4` methods.
+
+            const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
+            unsafe {
+                _mm_set_ps(
+                    f32::from_bits(MASK[w as usize]),
+                    f32::from_bits(MASK[z as usize]),
+                    f32::from_bits(MASK[y as usize]),
+                    f32::from_bits(MASK[x as usize]),
+                )
+            }
+        }
+    }
+
     #[inline]
-    unsafe fn dot_as_m128(lhs: __m128, rhs: __m128) -> __m128 {
+    unsafe fn dot_in_x(lhs: __m128, rhs: __m128) -> __m128 {
         let x2_y2_z2_w2 = _mm_mul_ps(lhs, rhs);
         let z2_w2_0_0 = _mm_shuffle_ps(x2_y2_z2_w2, x2_y2_z2_w2, 0b00_00_11_10);
         let x2z2_y2w2_0_0 = _mm_add_ps(x2_y2_z2_w2, z2_w2_0_0);
@@ -551,16 +521,13 @@ mod sse2 {
         _mm_add_ps(x2z2_y2w2_0_0, y2w2_0_0_0)
     }
 
-    /// Returns Vec4 dot in all lanes of Vec4
-    // #[inline]
-    // pub(crate) fn dot_as_float4(lhs: __m128, rhs: __m128) -> __m128 {
-    //     unsafe {
-    //         let dot_in_x = dot_as_m128(lhs, rhs);
-    //         _mm_shuffle_ps(dot_in_x, dot_in_x, 0b00_00_00_00)
-    //     }
-    // }
+    #[inline]
+    unsafe fn dot_in_xyzw(lhs: __m128, rhs: __m128) -> __m128 {
+        let dot_in_x = dot_in_x(lhs, rhs);
+        _mm_shuffle_ps(dot_in_x, dot_in_x, 0b00_00_00_00)
+    }
 
-    impl Vector4Consts for __m128 {
+    impl VectorConsts for __m128 {
         const ZERO: __m128 = const_m128!([0.0; 4]);
         const ONE: __m128 = const_m128!([1.0; 4]);
         const UNIT_X: __m128 = const_m128!([1.0, 0.0, 0.0, 0.0]);
@@ -570,13 +537,43 @@ mod sse2 {
     }
 
     impl Vector4 for __m128 {
-        type S = f32;
-        type Mask = __m128;
-
         #[inline]
         fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
             unsafe { _mm_set_ps(w, z, y, x) }
         }
+
+        #[inline]
+        fn from_array(a: [Self::S; 4]) -> Self {
+            unsafe { _mm_loadu_ps(a.as_ptr()) }
+        }
+
+        #[inline]
+        fn into_array(self) -> [Self::S; 4] {
+            let mut out: MaybeUninit<Align16<[f32; 4]>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
+                out.assume_init().0
+            }
+        }
+
+        #[inline]
+        fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self {
+            unsafe { _mm_set_ps(t.3, t.2, t.1, t.0) }
+        }
+
+        #[inline]
+        fn into_tuple(self) -> (Self::S, Self::S, Self::S, Self::S) {
+            let mut out: MaybeUninit<Align16<(f32, f32, f32, f32)>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
+                out.assume_init().0
+            }
+        }
+    }
+
+    impl Vector for __m128 {
+        type S = f32;
+        type Mask = __m128;
 
         #[inline]
         fn splat(s: f32) -> Self {
@@ -668,6 +665,11 @@ mod sse2 {
         }
 
         #[inline]
+        fn scale(self, other: Self::S) -> Self {
+            unsafe { _mm_mul_ps(self, _mm_set_ps1(other)) }
+        }
+
+        #[inline]
         fn min(self, other: Self) -> Self {
             unsafe { _mm_min_ps(self, other) }
         }
@@ -698,7 +700,7 @@ mod sse2 {
         }
     }
 
-    impl Float4 for __m128 {
+    impl FloatVector for __m128 {
         #[inline]
         fn is_nan(self) -> Self::Mask {
             unsafe { _mm_cmpunord_ps(self, self) }
@@ -753,13 +755,13 @@ mod sse2 {
 
         #[inline]
         fn dot(self, other: Self) -> f32 {
-            unsafe { _mm_cvtss_f32(dot_as_m128(self, other)) }
+            unsafe { _mm_cvtss_f32(dot_in_x(self, other)) }
         }
 
         #[inline]
         fn length(self) -> f32 {
             unsafe {
-                let dot = dot_as_m128(self, self);
+                let dot = dot_in_x(self, self);
                 _mm_cvtss_f32(_mm_sqrt_ps(dot))
             }
         }
@@ -767,7 +769,7 @@ mod sse2 {
         #[inline]
         fn length_recip(self) -> f32 {
             unsafe {
-                let dot = dot_as_m128(self, self);
+                let dot = dot_in_x(self, self);
                 // _mm_rsqrt_ps is lower precision
                 _mm_cvtss_f32(_mm_div_ps(Self::ONE, _mm_sqrt_ps(dot)))
             }
@@ -776,7 +778,7 @@ mod sse2 {
         #[inline]
         fn normalize(self) -> Self {
             unsafe {
-                let dot = dot_as_m128(self, self);
+                let dot = dot_in_xyzw(self, self);
                 _mm_div_ps(self, _mm_sqrt_ps(dot))
             }
         }

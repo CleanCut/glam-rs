@@ -6,9 +6,17 @@ use crate::vector_traits::*;
 use super::{Vec2, Vec3, Vec3A, Vec4Mask};
 use core::{fmt, ops::*};
 
-#[cfg(all(vec4_sse2, target_arch = "x86"))]
+#[cfg(all(
+    target_arch = "x86",
+    target_feature = "sse2",
+    not(feature = "scalar-math")
+))]
 use core::arch::x86::*;
-#[cfg(all(vec4_sse2, target_arch = "x86_64"))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse2",
+    not(feature = "scalar-math")
+))]
 use core::arch::x86_64::*;
 
 #[cfg(feature = "std")]
@@ -68,19 +76,16 @@ impl PartialOrd for Vec4 {
     }
 }
 
-#[cfg(vec4_sse2)]
-impl From<Vec4> for __m128 {
-    // TODO: write test
+impl From<Vec4> for Inner {
     #[inline]
     fn from(t: Vec4) -> Self {
         t.0
     }
 }
 
-#[cfg(vec4_sse2)]
-impl From<__m128> for Vec4 {
+impl From<Inner> for Vec4 {
     #[inline]
-    fn from(t: __m128) -> Self {
+    fn from(t: Inner) -> Self {
         Self(t)
     }
 }
@@ -529,18 +534,7 @@ impl Div<f32> for Vec4 {
 impl DivAssign<f32> for Vec4 {
     #[inline]
     fn div_assign(&mut self, other: f32) {
-        #[cfg(vec4_sse2)]
-        {
-            self.0 = unsafe { _mm_div_ps(self.0, _mm_set1_ps(other)) };
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            self.x /= other;
-            self.y /= other;
-            self.z /= other;
-            self.w /= other;
-        }
+        self.0 = self.0.div(Inner::splat(other));
     }
 }
 
@@ -548,20 +542,7 @@ impl Div<Vec4> for f32 {
     type Output = Vec4;
     #[inline]
     fn div(self, other: Vec4) -> Vec4 {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Vec4(_mm_div_ps(_mm_set1_ps(self), other.0))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Vec4 {
-                x: self / other.x,
-                y: self / other.y,
-                z: self / other.z,
-                w: self / other.w,
-            }
-        }
+        Vec4(Inner::splat(self).div(other.0))
     }
 }
 
@@ -569,38 +550,14 @@ impl Mul<Vec4> for Vec4 {
     type Output = Self;
     #[inline]
     fn mul(self, other: Self) -> Self {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Self(_mm_mul_ps(self.0, other.0))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Self {
-                x: self.x * other.x,
-                y: self.y * other.y,
-                z: self.z * other.z,
-                w: self.w * other.w,
-            }
-        }
+        Self(self.0.mul(other.0))
     }
 }
 
 impl MulAssign<Vec4> for Vec4 {
     #[inline]
     fn mul_assign(&mut self, other: Self) {
-        #[cfg(vec4_sse2)]
-        {
-            self.0 = unsafe { _mm_mul_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            self.x *= other.x;
-            self.y *= other.y;
-            self.z *= other.z;
-            self.w *= other.w;
-        }
+        self.0 = self.0.mul(other.0);
     }
 }
 
@@ -608,38 +565,14 @@ impl Mul<f32> for Vec4 {
     type Output = Self;
     #[inline]
     fn mul(self, other: f32) -> Self {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Self(_mm_mul_ps(self.0, _mm_set1_ps(other)))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Self {
-                x: self.x * other,
-                y: self.y * other,
-                z: self.z * other,
-                w: self.w * other,
-            }
-        }
+        Self(self.0.mul(Inner::splat(other)))
     }
 }
 
 impl MulAssign<f32> for Vec4 {
     #[inline]
     fn mul_assign(&mut self, other: f32) {
-        #[cfg(vec4_sse2)]
-        {
-            self.0 = unsafe { _mm_mul_ps(self.0, _mm_set1_ps(other)) };
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            self.x *= other;
-            self.y *= other;
-            self.z *= other;
-            self.w *= other;
-        }
+        self.0 = self.0.mul(Inner::splat(other));
     }
 }
 
@@ -647,20 +580,7 @@ impl Mul<Vec4> for f32 {
     type Output = Vec4;
     #[inline]
     fn mul(self, other: Vec4) -> Vec4 {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Vec4(_mm_mul_ps(_mm_set1_ps(self), other.0))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Vec4 {
-                x: self * other.x,
-                y: self * other.y,
-                z: self * other.z,
-                w: self * other.w,
-            }
-        }
+        Vec4(Inner::splat(self).mul(other.0))
     }
 }
 
@@ -668,38 +588,14 @@ impl Add for Vec4 {
     type Output = Self;
     #[inline]
     fn add(self, other: Self) -> Self {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Self(_mm_add_ps(self.0, other.0))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Self {
-                x: self.x + other.x,
-                y: self.y + other.y,
-                z: self.z + other.z,
-                w: self.w + other.w,
-            }
-        }
+        Self(self.0.add(other.0))
     }
 }
 
 impl AddAssign for Vec4 {
     #[inline]
     fn add_assign(&mut self, other: Self) {
-        #[cfg(vec4_sse2)]
-        {
-            self.0 = unsafe { _mm_add_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            self.x += other.x;
-            self.y += other.y;
-            self.z += other.z;
-            self.w += other.w;
-        }
+        self.0 = self.0.add(other.0);
     }
 }
 
@@ -707,38 +603,14 @@ impl Sub for Vec4 {
     type Output = Self;
     #[inline]
     fn sub(self, other: Self) -> Self {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Self(_mm_sub_ps(self.0, other.0))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Self {
-                x: self.x - other.x,
-                y: self.y - other.y,
-                z: self.z - other.z,
-                w: self.w - other.w,
-            }
-        }
+        Self(self.0.sub(other.0))
     }
 }
 
 impl SubAssign for Vec4 {
     #[inline]
     fn sub_assign(&mut self, other: Self) {
-        #[cfg(vec4_sse2)]
-        {
-            self.0 = unsafe { _mm_sub_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            self.x -= other.x;
-            self.y -= other.y;
-            self.z -= other.z;
-            self.w -= other.w;
-        }
+        self.0 = self.0.sub(other.0);
     }
 }
 
@@ -768,65 +640,28 @@ impl IndexMut<usize> for Vec4 {
 impl From<(f32, f32, f32, f32)> for Vec4 {
     #[inline]
     fn from(t: (f32, f32, f32, f32)) -> Self {
-        Self::new(t.0, t.1, t.2, t.3)
+        Self(Inner::from_tuple(t))
     }
 }
 
 impl From<Vec4> for (f32, f32, f32, f32) {
     #[inline]
     fn from(v: Vec4) -> Self {
-        #[cfg(vec4_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<(f32, f32, f32, f32)>> = MaybeUninit::uninit();
-            unsafe {
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            (v.x, v.y, v.z, v.w)
-        }
+        v.0.into_tuple()
     }
 }
 
 impl From<[f32; 4]> for Vec4 {
     #[inline]
     fn from(a: [f32; 4]) -> Self {
-        #[cfg(vec4_sse2)]
-        unsafe {
-            Self(_mm_loadu_ps(a.as_ptr()))
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Self {
-                x: a[0],
-                y: a[1],
-                z: a[2],
-                w: a[3],
-            }
-        }
+        Self(Inner::from_array(a))
     }
 }
 
 impl From<Vec4> for [f32; 4] {
     #[inline]
     fn from(v: Vec4) -> Self {
-        #[cfg(vec4_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<[f32; 4]>> = MaybeUninit::uninit();
-            unsafe {
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            [v.x, v.y, v.z, v.w]
-        }
+        v.into_array()
     }
 }
 
