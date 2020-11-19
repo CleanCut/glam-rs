@@ -1,4 +1,4 @@
-use crate::{XYZ, XYZW};
+use crate::{XY, XYZ, XYZW};
 
 pub trait MaskVectorConsts: Sized {
     const FALSE: Self;
@@ -64,6 +64,8 @@ pub trait Vector {
 
 pub trait Vector4: Vector {
     fn new(x: Self::S, y: Self::S, z: Self::S, w: Self::S) -> Self;
+    fn into_xy(self) -> XY<Self::S>;
+    fn into_xyz(self) -> XYZ<Self::S>;
     fn from_array(a: [Self::S; 4]) -> Self;
     fn into_array(self) -> [Self::S; 4];
     fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self;
@@ -94,7 +96,7 @@ mod scalar {
     use crate::vector_traits::{
         FloatVector, MaskVector, MaskVector4, MaskVectorConsts, Vector, Vector4, VectorConsts,
     };
-    use crate::XYZW;
+    use crate::{XY, XYZ, XYZW};
 
     impl<T> XYZW<T> {
         #[inline(always)]
@@ -215,6 +217,23 @@ mod scalar {
         #[inline]
         fn new(x: T, y: T, z: T, w: T) -> Self {
             Self { x, y, z, w }
+        }
+
+        #[inline]
+        fn into_xy(self) -> XY<Self::S> {
+            XY {
+                x: self.x,
+                y: self.y,
+            }
+        }
+
+        #[inline]
+        fn into_xyz(self) -> XYZ<Self::S> {
+            XYZ {
+                x: self.x,
+                y: self.y,
+                z: self.z,
+            }
         }
 
         #[inline]
@@ -454,7 +473,7 @@ mod sse2 {
         FloatVector, MaskVector, MaskVector4, MaskVectorConsts, Vector, Vector4, VectorConsts,
     };
     use crate::Align16;
-    use crate::{const_m128, XYZW};
+    use crate::{const_m128, XY, XYZ, XYZW};
     use core::mem::MaybeUninit;
 
     impl MaskVectorConsts for __m128 {
@@ -540,6 +559,24 @@ mod sse2 {
         #[inline]
         fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
             unsafe { _mm_set_ps(w, z, y, x) }
+        }
+
+        #[inline]
+        fn into_xy(self) -> XY<f32> {
+            let mut out: MaybeUninit<Align16<XY<f32>>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
+                out.assume_init().0
+            }
+        }
+
+        #[inline]
+        fn into_xyz(self) -> XYZ<f32> {
+            let mut out: MaybeUninit<Align16<XYZ<f32>>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
+                out.assume_init().0
+            }
         }
 
         #[inline]
