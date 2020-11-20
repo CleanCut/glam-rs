@@ -622,6 +622,13 @@ impl From<Vec2> for [f32; 2] {
     }
 }
 
+impl From<crate::XY<f32>> for Vec2 {
+    #[inline]
+    fn from(v: crate::XY<f32>) -> Self {
+        Vec2::new(v.x, v.y)
+    }
+}
+
 #[cfg(feature = "std")]
 impl<'a> Sum<&'a Self> for Vec2 {
     fn sum<I>(iter: I) -> Self

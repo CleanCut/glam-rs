@@ -1,28 +1,41 @@
 #[cfg(feature = "num-traits")]
 use num_traits::Float;
 
+use crate::vector_traits::*;
+
 use super::{Vec2, Vec3, Vec3AMask, Vec4};
 use core::{fmt, ops::*};
 
-#[cfg(all(vec3a_sse2, target_arch = "x86"))]
+#[cfg(all(
+    target_arch = "x86",
+    target_feature = "sse2",
+    not(feature = "scalar-math")
+))]
 use core::arch::x86::*;
-#[cfg(all(vec3a_sse2, target_arch = "x86_64"))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse2",
+    not(feature = "scalar-math")
+))]
 use core::arch::x86_64::*;
 
-#[cfg(vec3a_sse2)]
-use core::{cmp::Ordering, f32, mem::MaybeUninit};
+use core::{cmp::Ordering, f32};
 
 #[cfg(feature = "std")]
 use std::iter::{Product, Sum};
 
-#[cfg(vec3a_sse2)]
-use crate::Align16;
+#[cfg(all(target_feature = "sse2", not(feature = "scalar-math")))]
+type Inner = __m128;
 
-const ZERO: Vec3A = const_vec3a!([0.0; 3]);
-const ONE: Vec3A = const_vec3a!([1.0; 3]);
-const X_AXIS: Vec3A = const_vec3a!([1.0, 0.0, 0.0]);
-const Y_AXIS: Vec3A = const_vec3a!([0.0, 1.0, 0.0]);
-const Z_AXIS: Vec3A = const_vec3a!([0.0, 0.0, 1.0]);
+#[cfg(any(not(target_feature = "sse2"), feature = "scalar-math"))]
+type Inner = crate::XYZ<f32>;
+
+#[cfg(not(doc))]
+#[derive(Clone, Copy)]
+// if compiling with simd enabled assume alignment needs to match the simd type
+// #[cfg_attr(any(vec4_sse2, vec4_f32_align16), repr(align(16)))]
+#[repr(C)]
+pub struct Vec3A(pub(crate) Inner);
 
 /// A 3-dimensional vector with SIMD support.
 ///
@@ -39,38 +52,13 @@ pub struct Vec3A {
     pub z: f32,
 }
 
-#[cfg(all(target_feature = "sse2", not(feature = "scalar-math"), not(doc)))]
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct Vec3A(pub(crate) __m128);
-
-#[cfg(all(any(not(target_feature = "sse2"), feature = "scalar-math"), not(doc)))]
-#[derive(Clone, Copy, PartialEq, PartialOrd, Default)]
-#[repr(align(16), C)]
-pub struct Vec3A(pub(crate) Vec3);
-
-#[cfg(vec3a_sse2)]
-impl Vec3A {
-    /// Calculates the Vec3A dot product and returns answer in x lane of __m128.
-    #[inline]
-    unsafe fn dot_as_m128(self, other: Self) -> __m128 {
-        let x2_y2_z2_w2 = _mm_mul_ps(self.0, other.0);
-        let y2_0_0_0 = _mm_shuffle_ps(x2_y2_z2_w2, x2_y2_z2_w2, 0b00_00_00_01);
-        let z2_0_0_0 = _mm_shuffle_ps(x2_y2_z2_w2, x2_y2_z2_w2, 0b00_00_00_10);
-        let x2y2_0_0_0 = _mm_add_ss(x2_y2_z2_w2, y2_0_0_0);
-        _mm_add_ss(x2y2_0_0_0, z2_0_0_0)
-    }
-}
-
-#[cfg(all(vec3a_sse2, not(doc)))]
 impl Default for Vec3A {
     #[inline]
     fn default() -> Self {
-        ZERO
+        Self(Inner::ZERO)
     }
 }
 
-#[cfg(all(vec3a_sse2, not(doc)))]
 impl PartialEq for Vec3A {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -78,7 +66,6 @@ impl PartialEq for Vec3A {
     }
 }
 
-#[cfg(all(vec3a_sse2, not(doc)))]
 impl PartialOrd for Vec3A {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -86,8 +73,7 @@ impl PartialOrd for Vec3A {
     }
 }
 
-#[cfg(vec3a_sse2)]
-impl From<Vec3A> for __m128 {
+impl From<Vec3A> for Inner {
     // TODO: write test
     #[inline]
     fn from(t: Vec3A) -> Self {
@@ -95,10 +81,9 @@ impl From<Vec3A> for __m128 {
     }
 }
 
-#[cfg(vec3a_sse2)]
-impl From<__m128> for Vec3A {
+impl From<Inner> for Vec3A {
     #[inline]
-    fn from(t: __m128) -> Self {
+    fn from(t: Inner) -> Self {
         Self(t)
     }
 }
@@ -113,64 +98,49 @@ impl Vec3A {
     /// Creates a new `Vec3A`.
     #[inline]
     pub fn new(x: f32, y: f32, z: f32) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_set_ps(z, z, y, x))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(Vec3::new(x, y, z))
-        }
+        Self(Vector3::new(x, y, z))
     }
 
     /// Creates a `Vec3A` with all elements set to `0.0`.
     #[inline]
     pub const fn zero() -> Self {
-        ZERO
+        Self(Inner::ZERO)
     }
 
     /// Creates a `Vec3A` with all elements set to `1.0`.
     #[inline]
     pub const fn one() -> Self {
-        ONE
+        Self(Inner::ONE)
     }
 
     /// Creates a `Vec3A` with values `[x: 1.0, y: 0.0, z: 0.0]`.
     #[inline]
     pub const fn unit_x() -> Self {
-        X_AXIS
+        Self(Vector3Consts::UNIT_X)
     }
 
     /// Creates a `Vec3A` with values `[x: 0.0, y: 1.0, z: 0.0]`.
     #[inline]
     pub const fn unit_y() -> Self {
-        Y_AXIS
+        Self(Vector3Consts::UNIT_Y)
     }
 
     /// Creates a `Vec3A` with values `[x: 0.0, y: 0.0, z: 1.0]`.
     #[inline]
     pub const fn unit_z() -> Self {
-        Z_AXIS
+        Self(Vector3Consts::UNIT_Z)
     }
 
     /// Creates a `Vec3A` with all elements set to `v`.
     #[inline]
     pub fn splat(v: f32) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_set_ps1(v))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(Vec3::splat(v))
-        }
+        Self(Inner::splat(v))
     }
 
     /// Creates a `Vec4` from `self` and the given `w` value.
     #[inline]
     pub fn extend(self, w: f32) -> Vec4 {
+        // TODO
         #[cfg(vec3a_sse2)]
         {
             let mut temp: Vec4 = self.0.into();
@@ -189,84 +159,32 @@ impl Vec3A {
     /// Truncation may also be performed by using `self.xy()` or `Vec2::from()`.
     #[inline]
     pub fn truncate(self) -> Vec2 {
-        #[cfg(vec3a_sse2)]
-        {
-            let (x, y, _) = self.into();
-            Vec2::new(x, y)
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.truncate()
-        }
+        Vector3::into_xy(self.0).into()
     }
 
     /// Computes the dot product of `self` and `other`.
     #[inline]
     pub fn dot(self, other: Self) -> f32 {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            _mm_cvtss_f32(self.dot_as_m128(other))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.dot(other.0)
-        }
+        FloatVector3::dot(self.0, other.0)
     }
 
     /// Returns Vec3A dot in all lanes of Vec3A
     #[inline]
     #[allow(dead_code)]
     pub(crate) fn dot_as_vec3(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            let dot_in_x = self.dot_as_m128(other);
-            Vec3A(_mm_shuffle_ps(dot_in_x, dot_in_x, 0b00_00_00_00))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.dot_as_vec3(other.0))
-        }
+        Self(FloatVector3::dot_into_vec(self.0, other.0))
     }
 
     /// Computes the cross product of `self` and `other`.
     #[inline]
     pub fn cross(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            // x  <-  a.y*b.z - a.z*b.y
-            // y  <-  a.z*b.x - a.x*b.z
-            // z  <-  a.x*b.y - a.y*b.x
-            // We can save a shuffle by grouping it in this wacky order:
-            // (self.zxy() * other - self * other.zxy()).zxy()
-            let lhszxy = _mm_shuffle_ps(self.0, self.0, 0b01_01_00_10);
-            let rhszxy = _mm_shuffle_ps(other.0, other.0, 0b01_01_00_10);
-            let lhszxy_rhs = _mm_mul_ps(lhszxy, other.0);
-            let rhszxy_lhs = _mm_mul_ps(rhszxy, self.0);
-            let sub = _mm_sub_ps(lhszxy_rhs, rhszxy_lhs);
-            Self(_mm_shuffle_ps(sub, sub, 0b01_01_00_10))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.cross(other.0))
-        }
+        Self(self.0.cross(other.0))
     }
 
     /// Computes the length of `self`.
     #[inline]
     pub fn length(self) -> f32 {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            _mm_cvtss_f32(_mm_sqrt_ss(self.dot_as_m128(self)))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.length()
-        }
+        FloatVector3::length(self.0)
     }
 
     /// Computes the squared length of `self`.
@@ -283,19 +201,7 @@ impl Vec3A {
     /// For valid results, `self` must _not_ be of length zero.
     #[inline]
     pub fn length_recip(self) -> f32 {
-        #[cfg(vec3a_sse2)]
-        {
-            let dot = self.dot_as_vec3(self);
-            unsafe {
-                // _mm_rsqrt_ps is lower precision
-                _mm_cvtss_f32(_mm_div_ps(ONE.0, _mm_sqrt_ps(dot.0)))
-            }
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.length_recip()
-        }
+        FloatVector3::length_recip(self.0)
     }
 
     /// Computes the Euclidean distance between two points in space.
@@ -315,16 +221,7 @@ impl Vec3A {
     /// For valid results, `self` must _not_ be of length zero.
     #[inline]
     pub fn normalize(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        {
-            let dot = self.dot_as_vec3(self);
-            unsafe { Self(_mm_div_ps(self.0, _mm_sqrt_ps(dot.0))) }
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.normalize())
-        }
+        Self(FloatVector3::normalize(self.0))
     }
 
     /// Returns the vertical minimum of `self` and `other`.
@@ -334,15 +231,7 @@ impl Vec3A {
     /// taking the minimum of each element individually.
     #[inline]
     pub fn min(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_min_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.min(other.0))
-        }
+        Self(self.0.min(other.0))
     }
 
     /// Returns the vertical maximum of `self` and `other`.
@@ -352,15 +241,7 @@ impl Vec3A {
     /// taking the maximum of each element individually.
     #[inline]
     pub fn max(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_max_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.max(other.0))
-        }
+        Self(self.0.max(other.0))
     }
 
     /// Returns the horizontal minimum of `self`'s elements.
@@ -368,18 +249,7 @@ impl Vec3A {
     /// In other words, this computes `min(x, y, z)`.
     #[inline]
     pub fn min_element(self) -> f32 {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            let v = self.0;
-            let v = _mm_min_ps(v, _mm_shuffle_ps(v, v, 0b01_01_10_10));
-            let v = _mm_min_ps(v, _mm_shuffle_ps(v, v, 0b00_00_00_01));
-            _mm_cvtss_f32(v)
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.min_element()
-        }
+        self.0.min_element()
     }
 
     /// Returns the horizontal maximum of `self`'s elements.
@@ -387,18 +257,7 @@ impl Vec3A {
     /// In other words, this computes `max(x, y, z)`.
     #[inline]
     pub fn max_element(self) -> f32 {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            let v = self.0;
-            let v = _mm_max_ps(v, _mm_shuffle_ps(v, v, 0b00_00_10_10));
-            let v = _mm_max_ps(v, _mm_shuffle_ps(v, v, 0b00_00_00_01));
-            _mm_cvtss_f32(v)
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.max_element()
-        }
+        self.0.max_element()
     }
 
     /// Performs a vertical `==` comparison between `self` and `other`,
@@ -510,7 +369,7 @@ impl Vec3A {
     /// Panics if `slice` is less than three elements long.
     #[inline]
     pub fn from_slice_unaligned(slice: &[f32]) -> Self {
-        Self::new(slice[0], slice[1], slice[2])
+        Self(Inner::from_slice_unaligned(slice))
     }
 
     /// Writes the elements of `self` to the first three elements in `slice`.
@@ -520,90 +379,41 @@ impl Vec3A {
     /// Panics if `slice` is less than three elements long.
     #[inline]
     pub fn write_to_slice_unaligned(self, slice: &mut [f32]) {
-        let a = self.as_ref();
-        slice[0] = a[0];
-        slice[1] = a[1];
-        slice[2] = a[2];
+        self.0.write_to_slice_unaligned(slice)
     }
 
     /// Per element multiplication/addition of the three inputs: b + (self * a)
     #[inline]
     #[allow(dead_code)]
     pub(crate) fn mul_add(self, a: Self, b: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_add_ps(_mm_mul_ps(self.0, a.0), b.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.mul_add(a.0, b.0))
-        }
+        Self(self.0.mul_add(a.0, b.0))
     }
 
     /// Returns a `Vec3A` containing the absolute value of each element of `self`.
     #[inline]
     pub fn abs(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_and_ps(
-                self.0,
-                _mm_castsi128_ps(_mm_set1_epi32(0x7f_ff_ff_ff)),
-            ))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.abs())
-        }
+        Self(self.0.abs())
     }
 
     /// Returns a `Vec3A` containing the nearest integer to a number for each element of `self`.
     /// Round half-way cases away from 0.0.
     #[inline]
     pub fn round(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            use crate::f32::funcs::sse2::m128_round;
-            Self(m128_round(self.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.round())
-        }
+        Self(self.0.round())
     }
 
     /// Returns a `Vec3A` containing the largest integer less than or equal to a number for each
     /// element of `self`.
     #[inline]
     pub fn floor(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            use crate::f32::funcs::sse2::m128_floor;
-            Self(m128_floor(self.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.floor())
-        }
+        Self(self.0.floor())
     }
 
     /// Returns a `Vec3A` containing the smallest integer greater than or equal to a number for each
     /// element of `self`.
     #[inline]
     pub fn ceil(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            use crate::f32::funcs::sse2::m128_ceil;
-            Self(m128_ceil(self.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.ceil())
-        }
+        Self(self.0.ceil())
     }
 
     /// Returns a `Vec3A` containing `e^self` (the exponential function) for each element of `self`.
@@ -641,25 +451,13 @@ impl Vec3A {
     /// - `NAN` if the number is `NAN`
     #[inline]
     pub fn signum(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        {
-            const NEG_ONE: Vec3A = const_vec3a!([-1.0; 3]);
-            let mask = self.cmpge(ZERO);
-            let result = mask.select(ONE, NEG_ONE);
-            self.is_nan_mask().select(self, result)
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3A(self.0.signum())
-        }
+        Self(self.0.signum())
     }
 
     /// Returns a `Vec3A` containing the reciprocal `1.0/n` of each element of `self`.
     #[inline]
     pub fn recip(self) -> Self {
-        // TODO: Optimize
-        Self::one() / self
+        Self(self.0.recip())
     }
 
     /// Performs a linear interpolation between `self` and `other` based on
@@ -690,15 +488,7 @@ impl Vec3A {
     /// Returns `true` if any elements are `NaN`.
     #[inline]
     pub fn is_nan(self) -> bool {
-        #[cfg(vec3a_sse2)]
-        {
-            self.is_nan_mask().any()
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.is_nan()
-        }
+        self.0.is_nan().all()
     }
 
     /// Returns true if the absolute difference of all elements between `self`
@@ -752,16 +542,7 @@ impl fmt::Debug for Vec3A {
 
 impl fmt::Display for Vec3A {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        #[cfg(vec3a_sse2)]
-        {
-            let (x, y, z) = (*self).into();
-            write!(f, "[{}, {}, {}]", x, y, z)
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.fmt(f)
-        }
+        write!(f, "[{}, {}, {}]", self.x, self.y, self.z)
     }
 }
 
@@ -769,30 +550,14 @@ impl Div<Vec3A> for Vec3A {
     type Output = Self;
     #[inline]
     fn div(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_div_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.div(other.0))
-        }
+        Self(self.0.div(other.0))
     }
 }
 
 impl DivAssign<Vec3A> for Vec3A {
     #[inline]
     fn div_assign(&mut self, other: Self) {
-        #[cfg(vec3a_sse2)]
-        {
-            self.0 = unsafe { _mm_div_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.div_assign(other.0);
-        }
+        self.0 = self.0.div(other.0);
     }
 }
 
@@ -800,30 +565,15 @@ impl Div<f32> for Vec3A {
     type Output = Self;
     #[inline]
     fn div(self, other: f32) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_div_ps(self.0, _mm_set1_ps(other)))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.div(other))
-        }
+        // TODO: add div by scalar to inner?
+        Self(self.0.div(Inner::splat(other)))
     }
 }
 
 impl DivAssign<f32> for Vec3A {
     #[inline]
     fn div_assign(&mut self, other: f32) {
-        #[cfg(vec3a_sse2)]
-        {
-            self.0 = unsafe { _mm_div_ps(self.0, _mm_set1_ps(other)) };
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.div_assign(other)
-        }
+        self.0 = self.0.div(Inner::splat(other));
     }
 }
 
@@ -831,15 +581,7 @@ impl Div<Vec3A> for f32 {
     type Output = Vec3A;
     #[inline]
     fn div(self, other: Vec3A) -> Vec3A {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3A(_mm_div_ps(_mm_set1_ps(self), other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3A(self.div(other.0))
-        }
+        Vec3A(Inner::splat(self).div(other.0))
     }
 }
 
@@ -847,30 +589,14 @@ impl Mul<Vec3A> for Vec3A {
     type Output = Self;
     #[inline]
     fn mul(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_mul_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.mul(other.0))
-        }
+        Self(self.0.mul(other.0))
     }
 }
 
 impl MulAssign<Vec3A> for Vec3A {
     #[inline]
     fn mul_assign(&mut self, other: Self) {
-        #[cfg(vec3a_sse2)]
-        {
-            self.0 = unsafe { _mm_mul_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.mul_assign(other.0);
-        }
+        self.0 = self.0.mul(other.0);
     }
 }
 
@@ -878,30 +604,14 @@ impl Mul<f32> for Vec3A {
     type Output = Self;
     #[inline]
     fn mul(self, other: f32) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_mul_ps(self.0, _mm_set1_ps(other)))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.mul(other))
-        }
+        Self(self.0.mul(Inner::splat(other)))
     }
 }
 
 impl MulAssign<f32> for Vec3A {
     #[inline]
     fn mul_assign(&mut self, other: f32) {
-        #[cfg(vec3a_sse2)]
-        {
-            self.0 = unsafe { _mm_mul_ps(self.0, _mm_set1_ps(other)) };
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.mul_assign(other);
-        }
+        self.0 = self.0.mul(Inner::splat(other));
     }
 }
 
@@ -909,15 +619,7 @@ impl Mul<Vec3A> for f32 {
     type Output = Vec3A;
     #[inline]
     fn mul(self, other: Vec3A) -> Vec3A {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3A(_mm_mul_ps(_mm_set1_ps(self), other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3A(self.mul(other.0))
-        }
+        Vec3A(Inner::splat(self).mul(other.0))
     }
 }
 
@@ -925,30 +627,14 @@ impl Add for Vec3A {
     type Output = Self;
     #[inline]
     fn add(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_add_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.add(other.0))
-        }
+        Self(self.0.add(other.0))
     }
 }
 
 impl AddAssign for Vec3A {
     #[inline]
     fn add_assign(&mut self, other: Self) {
-        #[cfg(vec3a_sse2)]
-        {
-            self.0 = unsafe { _mm_add_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.add_assign(other.0);
-        }
+        self.0 = self.0.add(other.0);
     }
 }
 
@@ -956,30 +642,14 @@ impl Sub for Vec3A {
     type Output = Self;
     #[inline]
     fn sub(self, other: Self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_sub_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.sub(other.0))
-        }
+        Self(self.0.sub(other.0))
     }
 }
 
 impl SubAssign for Vec3A {
     #[inline]
     fn sub_assign(&mut self, other: Self) {
-        #[cfg(vec3a_sse2)]
-        {
-            self.0 = unsafe { _mm_sub_ps(self.0, other.0) };
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.sub_assign(other.0);
-        }
+        self.0 = self.0.sub(other.0);
     }
 }
 
@@ -987,15 +657,7 @@ impl Neg for Vec3A {
     type Output = Self;
     #[inline]
     fn neg(self) -> Self {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Self(_mm_sub_ps(ZERO.0, self.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Self(self.0.neg())
-        }
+        Self(self.0.neg())
     }
 }
 
@@ -1017,54 +679,28 @@ impl IndexMut<usize> for Vec3A {
 impl From<(f32, f32, f32)> for Vec3A {
     #[inline]
     fn from(t: (f32, f32, f32)) -> Self {
-        Self::new(t.0, t.1, t.2)
+        Self(Vector3::from_tuple(t))
     }
 }
 
 impl From<Vec3A> for (f32, f32, f32) {
     #[inline]
     fn from(v: Vec3A) -> Self {
-        #[cfg(vec3a_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<(f32, f32, f32)>> = MaybeUninit::uninit();
-            unsafe {
-                // out is 16 bytes in size due to alignment
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            v.0.into()
-        }
+        v.into_tuple()
     }
 }
 
 impl From<[f32; 3]> for Vec3A {
     #[inline]
     fn from(a: [f32; 3]) -> Self {
-        Self::new(a[0], a[1], a[2])
+        Self(Vector3::from_array(a))
     }
 }
 
 impl From<Vec3A> for [f32; 3] {
     #[inline]
     fn from(v: Vec3A) -> Self {
-        #[cfg(vec3a_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<[f32; 3]>> = MaybeUninit::uninit();
-            unsafe {
-                // out is 16 bytes in size due to alignment
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            v.0.into()
-        }
+        v.into_array()
     }
 }
 
@@ -1079,20 +715,7 @@ impl From<Vec3A> for Vec2 {
     /// Creates a `Vec2` from the `x` and `y` elements of the `Vec3A`, discarding `z`.
     #[inline]
     fn from(v: Vec3A) -> Self {
-        #[cfg(vec3a_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<Vec2>> = MaybeUninit::uninit();
-            unsafe {
-                // out is 16 bytes in size due to alignment
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            v.0.into()
-        }
+        v.into_xy().into()
     }
 }
 
@@ -1117,7 +740,7 @@ impl<'a> Sum<&'a Self> for Vec3A {
     where
         I: Iterator<Item = &'a Self>,
     {
-        iter.fold(ZERO, |a, &b| Self::add(a, b))
+        iter.fold(Self::zero(), |a, &b| Self::add(a, b))
     }
 }
 
@@ -1127,7 +750,7 @@ impl<'a> Product<&'a Self> for Vec3A {
     where
         I: Iterator<Item = &'a Self>,
     {
-        iter.fold(ONE, |a, &b| Self::mul(a, b))
+        iter.fold(Self::one(), |a, &b| Self::mul(a, b))
     }
 }
 

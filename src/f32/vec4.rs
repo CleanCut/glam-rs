@@ -118,25 +118,25 @@ impl Vec4 {
     /// Creates a `Vec4` with values `[x: 1.0, y: 0.0, z: 0.0, w: 0.0]`.
     #[inline]
     pub const fn unit_x() -> Self {
-        Self(Inner::UNIT_X)
+        Self(Vector4Consts::UNIT_X)
     }
 
     /// Creates a `Vec4` with values `[x: 0.0, y: 1.0, z: 0.0, w: 0.0]`.
     #[inline]
     pub const fn unit_y() -> Self {
-        Self(Inner::UNIT_Y)
+        Self(Vector4Consts::UNIT_Y)
     }
 
     /// Creates a `Vec4` with values `[x: 0.0, y: 0.0, z: 1.0, w: 0.0]`.
     #[inline]
     pub const fn unit_z() -> Self {
-        Self(Inner::UNIT_Z)
+        Self(Vector4Consts::UNIT_Z)
     }
 
     /// Creates a `Vec4` with values `[x: 0.0, y: 0.0, z: 0.0, w: 1.0]`.
     #[inline]
     pub const fn unit_w() -> Self {
-        Self(Inner::UNIT_W)
+        Self(Vector4Consts::UNIT_W)
     }
 
     /// Creates a `Vec4` with all elements set to `v`.
@@ -190,13 +190,13 @@ impl Vec4 {
     /// Computes the 4D dot product of `self` and `other`.
     #[inline]
     pub fn dot(self, other: Self) -> f32 {
-        self.0.dot(other.0)
+        FloatVector4::dot(self.0, other.0)
     }
 
     /// Computes the 4D length of `self`.
     #[inline]
     pub fn length(self) -> f32 {
-        self.0.length()
+        FloatVector4::length(self.0)
     }
 
     /// Computes the squared 4D length of `self`.
@@ -205,7 +205,7 @@ impl Vec4 {
     /// root operation.
     #[inline]
     pub fn length_squared(self) -> f32 {
-        self.0.dot(self.0)
+        FloatVector4::dot(self.0, self.0)
     }
 
     /// Computes `1.0 / Vec4::length()`.
@@ -213,7 +213,7 @@ impl Vec4 {
     /// For valid results, `self` must _not_ be of length zero.
     #[inline]
     pub fn length_recip(self) -> f32 {
-        self.0.length_recip()
+        FloatVector4::length_recip(self.0)
     }
 
     /// Computes the Euclidean distance between two points in space.
@@ -233,7 +233,7 @@ impl Vec4 {
     /// For valid results, `self` must _not_ be of length zero.
     #[inline]
     pub fn normalize(self) -> Self {
-        Self(self.0.normalize())
+        Self(FloatVector4::normalize(self.0))
     }
 
     /// Returns the vertical minimum of `self` and `other`.
@@ -640,21 +640,21 @@ impl IndexMut<usize> for Vec4 {
 impl From<(f32, f32, f32, f32)> for Vec4 {
     #[inline]
     fn from(t: (f32, f32, f32, f32)) -> Self {
-        Self(Inner::from_tuple(t))
+        Self(Vector4::from_tuple(t))
     }
 }
 
 impl From<Vec4> for (f32, f32, f32, f32) {
     #[inline]
     fn from(v: Vec4) -> Self {
-        v.0.into_tuple()
+        Vector4::into_tuple(v.0)
     }
 }
 
 impl From<[f32; 4]> for Vec4 {
     #[inline]
     fn from(a: [f32; 4]) -> Self {
-        Self(Inner::from_array(a))
+        Self(Vector4::from_array(a))
     }
 }
 
@@ -731,14 +731,14 @@ impl Deref for Vec4 {
     type Target = crate::XYZW<f32>;
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        Vector4::deref(&self.0)
     }
 }
 
 impl DerefMut for Vec4 {
     #[inline(always)]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.deref_mut()
+        Vector4::deref_mut(&mut self.0)
     }
 }
 
