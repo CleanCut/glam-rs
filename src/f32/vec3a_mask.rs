@@ -34,7 +34,7 @@ pub struct Vec3AMask(pub(crate) Inner);
 /// three boolean values.
 #[cfg(doc)]
 #[repr(align(16), C)]
-pub struct Vec3AMask(bool, bool, bool, bool);
+pub struct Vec3AMask(u32, u32, u32);
 
 impl Default for Vec3AMask {
     #[inline]

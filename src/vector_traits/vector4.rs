@@ -1233,6 +1233,37 @@ mod scalar {
             self.scale(self.length_recip())
         }
     }
+
+    impl<T> From<XYZW<T>> for XYZ<T> {
+        #[inline]
+        fn from(v: XYZW<T>) -> Self {
+            Self {
+                x: v.x,
+                y: v.y,
+                z: v.z,
+            }
+        }
+    }
+
+    impl<T> From<XYZW<T>> for XY<T> {
+        #[inline]
+        fn from(v: XYZW<T>) -> Self {
+            Self {
+                x: v.x,
+                y: v.y,
+            }
+        }
+    }
+
+    impl<T> From<XYZ<T>> for XY<T> {
+        #[inline]
+        fn from(v: XYZ<T>) -> Self {
+            Self {
+                x: v.x,
+                y: v.y,
+            }
+        }
+    }
 }
 
 #[cfg(all(target_feature = "sse2", not(feature = "scalar-math")))]
@@ -1779,6 +1810,39 @@ mod sse2 {
             unsafe {
                 let dot = FloatVector4::dot_into_vec(self, self);
                 _mm_div_ps(self, _mm_sqrt_ps(dot))
+            }
+        }
+    }
+
+    impl From<__m128> for XYZW<f32> {
+        #[inline]
+        fn from(v: __m128) -> XYZW<f32> {
+            let mut out: MaybeUninit<Align16<XYZW<f32>>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, v);
+                out.assume_init().0
+            }
+        }
+    }
+
+    impl From<__m128> for XYZ<f32> {
+        #[inline]
+        fn from(v: __m128) -> XYZ<f32> {
+            let mut out: MaybeUninit<Align16<XYZ<f32>>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, v);
+                out.assume_init().0
+            }
+        }
+    }
+
+    impl From<__m128> for XY<f32> {
+        #[inline]
+        fn from(v: __m128) -> XY<f32> {
+            let mut out: MaybeUninit<Align16<XY<f32>>> = MaybeUninit::uninit();
+            unsafe {
+                _mm_store_ps(out.as_mut_ptr() as *mut f32, v);
+                out.assume_init().0
             }
         }
     }

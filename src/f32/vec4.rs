@@ -671,15 +671,7 @@ impl From<Vec4> for Vec3A {
     /// On architectures where SIMD is supported such as SSE2 on x86_64 this conversion is a noop.
     #[inline]
     fn from(v: Vec4) -> Self {
-        #[cfg(vec4_sse2)]
-        {
-            Vec3A(v.0)
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Vec3A::new(v.x, v.y, v.z)
-        }
+        Self(v.0.into())
     }
 }
 
@@ -687,6 +679,7 @@ impl From<Vec4> for Vec3 {
     /// Creates a `Vec3` from the `x`, `y` and `z` elements of the `Vec4`, discarding `z`.
     #[inline]
     fn from(v: Vec4) -> Self {
+        // TODO: Vec3(Inner)
         #[cfg(vec4_sse2)]
         {
             let mut out: MaybeUninit<Align16<Vec3>> = MaybeUninit::uninit();
@@ -711,6 +704,7 @@ impl From<Vec4> for Vec2 {
     /// Creates a `Vec2` from the `x` and `y` elements of the `Vec4`, discarding `z`.
     #[inline]
     fn from(v: Vec4) -> Self {
+        // TODO: Vec3(Inner)
         #[cfg(vec4_sse2)]
         {
             let mut out: MaybeUninit<Align16<Vec2>> = MaybeUninit::uninit();
