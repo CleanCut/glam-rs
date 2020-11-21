@@ -233,7 +233,7 @@ fn write_swizzle_vec3a(out: &mut impl Write) -> Result<()> {
 use super::{{Vec2, Vec3A, Vec4}};
 
 #[cfg(vec3a_f32)]
-use super::Vec3;
+use crate::{{XYZ, XYZW}};
 
 #[cfg(all(vec3a_sse2, target_arch = "x86"))]
 use core::arch::x86::*;
@@ -267,7 +267,7 @@ impl Vec3ASwizzles for Vec3A {{"#
 
         #[cfg(vec3a_f32)]
         {{
-            Vec4::new(self.0.{}, self.0.{}, self.0.{}, self.0.{})
+            Vec4(XYZW {{ x: self.0.{}, y: self.0.{}, z: self.0.{}, w: self.0.{} }})
         }}
     }}"#,
                 E[e0], E[e1], E[e2], E[e3], B[e3], B[e2], B[e1], B[e0], E[e0], E[e1], E[e2], E[e3],
@@ -286,7 +286,7 @@ impl Vec3ASwizzles for Vec3A {{"#
 
         #[cfg(vec3a_f32)]
         {{
-            Vec3A(Vec3 {{ x: self.0.{}, y: self.0.{}, z: self.0.{} }})
+            Vec3A(XYZ {{ x: self.0.{}, y: self.0.{}, z: self.0.{} }})
         }}
     }}"#,
                 E[e0], E[e1], E[e2], B[e2], B[e1], B[e0], E[e0], E[e1], E[e2]

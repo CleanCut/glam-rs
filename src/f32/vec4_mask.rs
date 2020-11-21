@@ -12,7 +12,7 @@ use core::{cmp::Ordering, hash};
 type Inner = __m128;
 
 #[cfg(any(not(target_feature = "sse2"), feature = "scalar-math"))]
-type Inner = crate::XYZW<bool>;
+type Inner = crate::XYZW<u32>;
 
 #[cfg(not(doc))]
 #[derive(Clone, Copy)]

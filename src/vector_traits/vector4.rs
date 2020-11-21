@@ -1,13 +1,12 @@
 use crate::{XY, XYZ, XYZW};
 
+const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
+
 pub trait MaskVectorConsts: Sized {
     const FALSE: Self;
 }
 
 pub trait MaskVector: MaskVectorConsts {
-    fn bitmask(self) -> u32;
-    fn any(self) -> bool;
-    fn all(self) -> bool;
     fn and(self, other: Self) -> Self;
     fn or(self, other: Self) -> Self;
     fn not(self) -> Self;
@@ -15,14 +14,23 @@ pub trait MaskVector: MaskVectorConsts {
 
 pub trait MaskVector2: MaskVector {
     fn new(x: bool, y: bool) -> Self;
+    fn bitmask(self) -> u32;
+    fn any(self) -> bool;
+    fn all(self) -> bool;
 }
 
 pub trait MaskVector3: MaskVector {
     fn new(x: bool, y: bool, z: bool) -> Self;
+    fn bitmask(self) -> u32;
+    fn any(self) -> bool;
+    fn all(self) -> bool;
 }
 
 pub trait MaskVector4: MaskVector {
     fn new(x: bool, y: bool, z: bool, w: bool) -> Self;
+    fn bitmask(self) -> u32;
+    fn any(self) -> bool;
+    fn all(self) -> bool;
 }
 
 pub trait VectorConsts: Sized {
@@ -153,6 +161,7 @@ pub trait Quaternion: FloatVector {
 }
 
 mod scalar {
+    use super::MASK;
     use crate::scalar_traits::{Float, Num, NumConsts};
     use crate::vector_traits::*;
     use crate::{XY, XYZ, XYZW};
@@ -271,51 +280,32 @@ mod scalar {
         }
     }
 
-    impl MaskVectorConsts for XY<bool> {
-        const FALSE: Self = Self { x: false, y: false };
+    impl MaskVectorConsts for XY<u32> {
+        const FALSE: Self = Self { x: 0, y: 0 };
     }
 
-    impl MaskVectorConsts for XYZ<bool> {
+    impl MaskVectorConsts for XYZ<u32> {
+        const FALSE: Self = Self { x: 0, y: 0, z: 0 };
+    }
+
+    impl MaskVectorConsts for XYZW<u32> {
         const FALSE: Self = Self {
-            x: false,
-            y: false,
-            z: false,
+            x: 0,
+            y: 0,
+            z: 0,
+            w: 0,
         };
     }
 
-    impl MaskVectorConsts for XYZW<bool> {
-        const FALSE: Self = Self {
-            x: false,
-            y: false,
-            z: false,
-            w: false,
-        };
-    }
-
-    impl MaskVector for XY<bool> {
-        #[inline]
-        fn bitmask(self) -> u32 {
-            (self.x as u32) | (self.y as u32) << 1
-        }
-
-        #[inline]
-        fn any(self) -> bool {
-            self.x || self.y
-        }
-
-        #[inline]
-        fn all(self) -> bool {
-            self.x && self.y
-        }
-
+    impl MaskVector for XY<u32> {
         #[inline]
         fn and(self, other: Self) -> Self {
-            self.map2(other, |a, b| a && b)
+            self.map2(other, |a, b| a & b)
         }
 
         #[inline]
         fn or(self, other: Self) -> Self {
-            self.map2(other, |a, b| a || b)
+            self.map2(other, |a, b| a | b)
         }
 
         #[inline]
@@ -324,30 +314,15 @@ mod scalar {
         }
     }
 
-    impl MaskVector for XYZ<bool> {
-        #[inline]
-        fn bitmask(self) -> u32 {
-            (self.x as u32) | (self.y as u32) << 1 | (self.z as u32) << 2
-        }
-
-        #[inline]
-        fn any(self) -> bool {
-            self.x || self.y || self.z
-        }
-
-        #[inline]
-        fn all(self) -> bool {
-            self.x && self.y && self.z
-        }
-
+    impl MaskVector for XYZ<u32> {
         #[inline]
         fn and(self, other: Self) -> Self {
-            self.map2(other, |a, b| a && b)
+            self.map2(other, |a, b| a & b)
         }
 
         #[inline]
         fn or(self, other: Self) -> Self {
-            self.map2(other, |a, b| a || b)
+            self.map2(other, |a, b| a | b)
         }
 
         #[inline]
@@ -356,30 +331,15 @@ mod scalar {
         }
     }
 
-    impl MaskVector for XYZW<bool> {
-        #[inline]
-        fn bitmask(self) -> u32 {
-            (self.x as u32) | (self.y as u32) << 1 | (self.z as u32) << 2 | (self.w as u32) << 3
-        }
-
-        #[inline]
-        fn any(self) -> bool {
-            self.x || self.y || self.z || self.w
-        }
-
-        #[inline]
-        fn all(self) -> bool {
-            self.x && self.y && self.z && self.w
-        }
-
+    impl MaskVector for XYZW<u32> {
         #[inline]
         fn and(self, other: Self) -> Self {
-            self.map2(other, |a, b| a && b)
+            self.map2(other, |a, b| a & b)
         }
 
         #[inline]
         fn or(self, other: Self) -> Self {
-            self.map2(other, |a, b| a || b)
+            self.map2(other, |a, b| a | b)
         }
 
         #[inline]
@@ -388,24 +348,86 @@ mod scalar {
         }
     }
 
-    impl MaskVector2 for XY<bool> {
+    impl MaskVector2 for XY<u32> {
         #[inline]
         fn new(x: bool, y: bool) -> Self {
-            Self { x, y }
+            Self {
+                x: MASK[x as usize],
+                y: MASK[y as usize],
+            }
+        }
+
+        #[inline]
+        fn bitmask(self) -> u32 {
+            (self.x & 0x1) | (self.y & 0x1) << 1
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            ((self.x | self.y) & 0x1) != 0
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            ((self.x & self.y) & 0x1) != 0
         }
     }
 
-    impl MaskVector3 for XYZ<bool> {
+    impl MaskVector3 for XYZ<u32> {
         #[inline]
         fn new(x: bool, y: bool, z: bool) -> Self {
-            Self { x, y, z }
+            // A SSE2 mask can be any bit pattern but for the `Vec3Mask` implementation of select
+            // we expect either 0 or 0xff_ff_ff_ff. This should be a safe assumption as this type
+            // can only be created via this function or by `Vec3` methods.
+            Self {
+                x: MASK[x as usize],
+                y: MASK[y as usize],
+                z: MASK[z as usize],
+            }
+        }
+        #[inline]
+        fn bitmask(self) -> u32 {
+            (self.x & 0x1) | (self.y & 0x1) << 1 | (self.z & 0x1) << 2
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            ((self.x | self.y | self.z) & 0x1) != 0
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            ((self.x & self.y & self.z) & 0x1) != 0
         }
     }
 
-    impl MaskVector4 for XYZW<bool> {
+    impl MaskVector4 for XYZW<u32> {
         #[inline]
         fn new(x: bool, y: bool, z: bool, w: bool) -> Self {
-            Self { x, y, z, w }
+            // A SSE2 mask can be any bit pattern but for the `Vec4Mask` implementation of select
+            // we expect either 0 or 0xff_ff_ff_ff. This should be a safe assumption as this type
+            // can only be created via this function or by `Vec4` methods.
+            Self {
+                x: MASK[x as usize],
+                y: MASK[y as usize],
+                z: MASK[z as usize],
+                w: MASK[w as usize],
+            }
+        }
+
+        #[inline]
+        fn bitmask(self) -> u32 {
+            (self.x & 0x1) | (self.y & 0x1) << 1 | (self.z & 0x1) << 2 | (self.w & 0x1) << 3
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            ((self.x | self.y | self.z | self.w) & 0x1) != 0
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            ((self.x & self.y & self.z & self.w) & 0x1) != 0
         }
     }
 
@@ -504,52 +526,49 @@ mod scalar {
 
     impl<T: Num> Vector for XY<T> {
         type S = T;
-        type Mask = XY<bool>;
+        type Mask = XY<u32>;
 
         #[inline]
         fn splat(s: T) -> Self {
-            Self {
-                x: s,
-                y: s,
-            }
+            Self { x: s, y: s }
         }
 
         #[inline]
         fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self {
             Self {
-                x: if mask.x { if_true.x } else { if_false.x },
-                y: if mask.y { if_true.y } else { if_false.y },
+                x: if mask.x != 0 { if_true.x } else { if_false.x },
+                y: if mask.y != 0 { if_true.y } else { if_false.y },
             }
         }
 
         #[inline]
         fn cmpeq(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.eq(&b))
+            self.map2(other, |a, b| MASK[a.eq(&b) as usize])
         }
 
         #[inline]
         fn cmpne(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.ne(&b))
+            self.map2(other, |a, b| MASK[a.ne(&b) as usize])
         }
 
         #[inline]
         fn cmpge(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.ge(&b))
+            self.map2(other, |a, b| MASK[a.ge(&b) as usize])
         }
 
         #[inline]
         fn cmpgt(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.gt(&b))
+            self.map2(other, |a, b| MASK[a.gt(&b) as usize])
         }
 
         #[inline]
         fn cmple(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.le(&b))
+            self.map2(other, |a, b| MASK[a.le(&b) as usize])
         }
 
         #[inline]
         fn cmplt(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.lt(&b))
+            self.map2(other, |a, b| MASK[a.lt(&b) as usize])
         }
 
         #[inline]
@@ -604,54 +623,50 @@ mod scalar {
 
     impl<T: Num> Vector for XYZ<T> {
         type S = T;
-        type Mask = XYZ<bool>;
+        type Mask = XYZ<u32>;
 
         #[inline]
         fn splat(s: T) -> Self {
-            Self {
-                x: s,
-                y: s,
-                z: s,
-            }
+            Self { x: s, y: s, z: s }
         }
 
         #[inline]
         fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self {
             Self {
-                x: if mask.x { if_true.x } else { if_false.x },
-                y: if mask.y { if_true.y } else { if_false.y },
-                z: if mask.z { if_true.z } else { if_false.z },
+                x: if mask.x != 0 { if_true.x } else { if_false.x },
+                y: if mask.y != 0 { if_true.y } else { if_false.y },
+                z: if mask.z != 0 { if_true.z } else { if_false.z },
             }
         }
 
         #[inline]
         fn cmpeq(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.eq(&b))
+            self.map2(other, |a, b| MASK[a.eq(&b) as usize])
         }
 
         #[inline]
         fn cmpne(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.ne(&b))
+            self.map2(other, |a, b| MASK[a.ne(&b) as usize])
         }
 
         #[inline]
         fn cmpge(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.ge(&b))
+            self.map2(other, |a, b| MASK[a.ge(&b) as usize])
         }
 
         #[inline]
         fn cmpgt(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.gt(&b))
+            self.map2(other, |a, b| MASK[a.gt(&b) as usize])
         }
 
         #[inline]
         fn cmple(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.le(&b))
+            self.map2(other, |a, b| MASK[a.le(&b) as usize])
         }
 
         #[inline]
         fn cmplt(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.lt(&b))
+            self.map2(other, |a, b| MASK[a.lt(&b) as usize])
         }
 
         #[inline]
@@ -706,7 +721,7 @@ mod scalar {
 
     impl<T: Num> Vector for XYZW<T> {
         type S = T;
-        type Mask = XYZW<bool>;
+        type Mask = XYZW<u32>;
 
         #[inline]
         fn splat(s: T) -> Self {
@@ -721,41 +736,41 @@ mod scalar {
         #[inline]
         fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self {
             Self {
-                x: if mask.x { if_true.x } else { if_false.x },
-                y: if mask.y { if_true.y } else { if_false.y },
-                z: if mask.z { if_true.z } else { if_false.z },
-                w: if mask.w { if_true.w } else { if_false.w },
+                x: if mask.x != 0 { if_true.x } else { if_false.x },
+                y: if mask.y != 0 { if_true.y } else { if_false.y },
+                z: if mask.z != 0 { if_true.z } else { if_false.z },
+                w: if mask.w != 0 { if_true.w } else { if_false.w },
             }
         }
 
         #[inline]
         fn cmpeq(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.eq(&b))
+            self.map2(other, |a, b| MASK[a.eq(&b) as usize])
         }
 
         #[inline]
         fn cmpne(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.ne(&b))
+            self.map2(other, |a, b| MASK[a.ne(&b) as usize])
         }
 
         #[inline]
         fn cmpge(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.ge(&b))
+            self.map2(other, |a, b| MASK[a.ge(&b) as usize])
         }
 
         #[inline]
         fn cmpgt(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.gt(&b))
+            self.map2(other, |a, b| MASK[a.gt(&b) as usize])
         }
 
         #[inline]
         fn cmple(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.le(&b))
+            self.map2(other, |a, b| MASK[a.le(&b) as usize])
         }
 
         #[inline]
         fn cmplt(self, other: Self) -> Self::Mask {
-            self.map2(other, |a, b| a.lt(&b))
+            self.map2(other, |a, b| MASK[a.lt(&b) as usize])
         }
 
         #[inline]
@@ -859,10 +874,7 @@ mod scalar {
 
         #[inline]
         fn from_array(a: [Self::S; 2]) -> Self {
-            Self {
-                x: a[0],
-                y: a[1],
-            }
+            Self { x: a[0], y: a[1] }
         }
 
         #[inline]
@@ -1033,10 +1045,94 @@ mod scalar {
         }
     }
 
+    impl<T: Float> FloatVector for XY<T> {
+        #[inline]
+        fn is_nan(self) -> Self::Mask {
+            self.map(|a| MASK[a.is_nan() as usize])
+        }
+
+        #[inline]
+        fn abs(self) -> Self {
+            self.map(Float::abs)
+        }
+
+        #[inline]
+        fn floor(self) -> Self {
+            self.map(Float::floor)
+        }
+
+        #[inline]
+        fn ceil(self) -> Self {
+            self.map(Float::ceil)
+        }
+
+        #[inline]
+        fn round(self) -> Self {
+            self.map(Float::round)
+        }
+
+        #[inline]
+        fn neg(self) -> Self {
+            self.map(|a| a.neg())
+        }
+
+        #[inline]
+        fn recip(self) -> Self {
+            self.map(Float::recip)
+        }
+
+        #[inline]
+        fn signum(self) -> Self {
+            self.map(Float::signum)
+        }
+    }
+
+    impl<T: Float> FloatVector for XYZ<T> {
+        #[inline]
+        fn is_nan(self) -> Self::Mask {
+            self.map(|a| MASK[a.is_nan() as usize])
+        }
+
+        #[inline]
+        fn abs(self) -> Self {
+            self.map(Float::abs)
+        }
+
+        #[inline]
+        fn floor(self) -> Self {
+            self.map(Float::floor)
+        }
+
+        #[inline]
+        fn ceil(self) -> Self {
+            self.map(Float::ceil)
+        }
+
+        #[inline]
+        fn round(self) -> Self {
+            self.map(Float::round)
+        }
+
+        #[inline]
+        fn neg(self) -> Self {
+            self.map(|a| a.neg())
+        }
+
+        #[inline]
+        fn recip(self) -> Self {
+            self.map(Float::recip)
+        }
+
+        #[inline]
+        fn signum(self) -> Self {
+            self.map(Float::signum)
+        }
+    }
+
     impl<T: Float> FloatVector for XYZW<T> {
         #[inline]
         fn is_nan(self) -> Self::Mask {
-            self.map(Float::is_nan)
+            self.map(|a| MASK[a.is_nan() as usize])
         }
 
         #[inline]
@@ -1146,6 +1242,7 @@ mod sse2 {
     #[cfg(target_arch = "x86_64")]
     use core::arch::x86_64::*;
 
+    use super::MASK;
     use crate::vector_traits::*;
     use crate::Align16;
     use crate::{const_m128, XY, XYZ, XYZW};
@@ -1156,21 +1253,6 @@ mod sse2 {
     }
 
     impl MaskVector for __m128 {
-        #[inline]
-        fn bitmask(self) -> u32 {
-            unsafe { _mm_movemask_ps(self) as u32 }
-        }
-
-        #[inline]
-        fn any(self) -> bool {
-            unsafe { _mm_movemask_ps(self) != 0 }
-        }
-
-        #[inline]
-        fn all(self) -> bool {
-            unsafe { _mm_movemask_ps(self) == 0xf }
-        }
-
         #[inline]
         fn and(self, other: Self) -> Self {
             unsafe { _mm_and_ps(self, other) }
@@ -1184,6 +1266,39 @@ mod sse2 {
         #[inline]
         fn not(self) -> Self {
             unsafe { _mm_andnot_ps(self, _mm_set_ps1(f32::from_bits(0xff_ff_ff_ff))) }
+        }
+    }
+
+    impl MaskVector3 for __m128 {
+        #[inline]
+        fn new(x: bool, y: bool, z: bool) -> Self {
+            // A SSE2 mask can be any bit pattern but for the `MaskVector3` implementation of select we
+            // expect either 0 or 0xff_ff_ff_ff. This should be a safe assumption as this type can only
+            // be created via this function or by `Vector3` methods.
+
+            unsafe {
+                _mm_set_ps(
+                    0.0,
+                    f32::from_bits(MASK[z as usize]),
+                    f32::from_bits(MASK[y as usize]),
+                    f32::from_bits(MASK[x as usize]),
+                )
+            }
+        }
+
+        #[inline]
+        fn bitmask(self) -> u32 {
+            unsafe { (_mm_movemask_ps(self) as u32) & 0x7 }
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            unsafe { (_mm_movemask_ps(self) & 0x7) != 0 }
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            unsafe { (_mm_movemask_ps(self) & 0x7) == 0x7 }
         }
     }
 
@@ -1203,6 +1318,20 @@ mod sse2 {
                     f32::from_bits(MASK[x as usize]),
                 )
             }
+        }
+        #[inline]
+        fn bitmask(self) -> u32 {
+            unsafe { _mm_movemask_ps(self) as u32 }
+        }
+
+        #[inline]
+        fn any(self) -> bool {
+            unsafe { _mm_movemask_ps(self) != 0 }
+        }
+
+        #[inline]
+        fn all(self) -> bool {
+            unsafe { _mm_movemask_ps(self) == 0xf }
         }
     }
 

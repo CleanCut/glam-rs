@@ -34,7 +34,7 @@ type Inner = crate::XYZ<f32>;
 #[derive(Clone, Copy)]
 // if compiling with simd enabled assume alignment needs to match the simd type
 // #[cfg_attr(any(vec4_sse2, vec4_f32_align16), repr(align(16)))]
-#[repr(C)]
+#[repr(align(16), C)]
 pub struct Vec3A(pub(crate) Inner);
 
 /// A 3-dimensional vector with SIMD support.
@@ -137,21 +137,21 @@ impl Vec3A {
         Self(Inner::splat(v))
     }
 
+    /// Creates a new `Vec3A` from the elements in `if_true` and `if_false`, selecting which to use
+    /// for each element of `self`.
+    ///
+    /// A true element in the mask uses the corresponding element from `if_true`, and false uses
+    /// the element from `if_false`.
+    #[inline]
+    pub fn select(mask: Vec3AMask, if_true: Vec3A, if_false: Vec3A) -> Vec3A {
+        Self(Inner::select(mask.0, if_true.0, if_false.0))
+    }
+
     /// Creates a `Vec4` from `self` and the given `w` value.
     #[inline]
     pub fn extend(self, w: f32) -> Vec4 {
-        // TODO
-        #[cfg(vec3a_sse2)]
-        {
-            let mut temp: Vec4 = self.0.into();
-            temp.w = w;
-            temp
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            self.0.extend(w)
-        }
+        // TODO: Optimize?
+        Vec4(Vector4::new(self.x, self.y, self.z, w))
     }
 
     /// Creates a `Vec2` from the `x` and `y` elements of `self`, discarding `z`.
@@ -433,15 +433,7 @@ impl Vec3A {
     /// In other words, this computes `[x.is_nan(), y.is_nan(), z.is_nan()]`.
     #[inline]
     pub fn is_nan_mask(self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmpunord_ps(self.0, self.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.is_nan_mask())
-        }
+        Vec3AMask(self.0.is_nan())
     }
 
     /// Returns a `Vec3A` with elements representing the sign of `self`.
@@ -488,7 +480,7 @@ impl Vec3A {
     /// Returns `true` if any elements are `NaN`.
     #[inline]
     pub fn is_nan(self) -> bool {
-        self.0.is_nan().all()
+        MaskVector3::all(self.0.is_nan())
     }
 
     /// Returns true if the absolute difference of all elements between `self`
