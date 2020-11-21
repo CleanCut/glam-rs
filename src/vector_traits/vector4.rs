@@ -25,7 +25,7 @@ pub trait MaskVector4: MaskVector {
     fn new(x: bool, y: bool, z: bool, w: bool) -> Self;
 }
 
-pub trait VectorConsts {
+pub trait VectorConsts: Sized {
     const ZERO: Self;
     const ONE: Self;
 }
@@ -48,14 +48,11 @@ pub trait Vector4Consts: VectorConsts {
     const UNIT_W: Self;
 }
 
-pub trait Vector {
+pub trait Vector: Sized {
     type S: Sized;
     type Mask: Sized;
 
     fn splat(s: Self::S) -> Self;
-
-    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
 
     fn select(mask: Self::Mask, a: Self, b: Self) -> Self;
 
@@ -83,6 +80,8 @@ pub trait Vector {
 
 pub trait Vector2: Vector {
     fn new(x: Self::S, y: Self::S) -> Self;
+    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
     fn deref(&self) -> &XY<Self::S>;
     fn deref_mut(&mut self) -> &mut XY<Self::S>;
     fn into_xyz(self, z: Self::S) -> XYZ<Self::S>;
@@ -95,6 +94,8 @@ pub trait Vector2: Vector {
 
 pub trait Vector3: Vector {
     fn new(x: Self::S, y: Self::S, z: Self::S) -> Self;
+    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
     fn deref(&self) -> &XYZ<Self::S>;
     fn deref_mut(&mut self) -> &mut XYZ<Self::S>;
     fn into_xy(self) -> XY<Self::S>;
@@ -107,6 +108,8 @@ pub trait Vector3: Vector {
 
 pub trait Vector4: Vector {
     fn new(x: Self::S, y: Self::S, z: Self::S, w: Self::S) -> Self;
+    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
     fn deref(&self) -> &XYZW<Self::S>;
     fn deref_mut(&mut self) -> &mut XYZW<Self::S>;
     fn into_xy(self) -> XY<Self::S>;
@@ -550,20 +553,6 @@ mod scalar {
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
-            Self {
-                x: slice[0],
-                y: slice[1],
-            }
-        }
-
-        #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
-            slice[0] = self.x;
-            slice[1] = self.y;
-        }
-
-        #[inline]
         fn add(self, other: Self) -> Self {
             self.map2(other, |a, b| a + b)
         }
@@ -663,22 +652,6 @@ mod scalar {
         #[inline]
         fn cmplt(self, other: Self) -> Self::Mask {
             self.map2(other, |a, b| a.lt(&b))
-        }
-
-        #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
-            Self {
-                x: slice[0],
-                y: slice[1],
-                z: slice[2],
-            }
-        }
-
-        #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
-            slice[0] = self.x;
-            slice[1] = self.y;
-            slice[2] = self.z;
         }
 
         #[inline]
@@ -786,24 +759,6 @@ mod scalar {
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
-            Self {
-                x: slice[0],
-                y: slice[1],
-                z: slice[2],
-                w: slice[3],
-            }
-        }
-
-        #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
-            slice[0] = self.x;
-            slice[1] = self.y;
-            slice[2] = self.z;
-            slice[3] = self.w;
-        }
-
-        #[inline]
         fn add(self, other: Self) -> Self {
             self.map2(other, |a, b| a + b)
         }
@@ -857,6 +812,20 @@ mod scalar {
         #[inline]
         fn new(x: T, y: T) -> Self {
             Self { x, y }
+        }
+
+        #[inline]
+        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+            Self {
+                x: slice[0],
+                y: slice[1],
+            }
+        }
+
+        #[inline]
+        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+            slice[0] = self.x;
+            slice[1] = self.y;
         }
 
         #[inline]
@@ -919,6 +888,22 @@ mod scalar {
         }
 
         #[inline]
+        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+            Self {
+                x: slice[0],
+                y: slice[1],
+                z: slice[2],
+            }
+        }
+
+        #[inline]
+        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+            slice[0] = self.x;
+            slice[1] = self.y;
+            slice[2] = self.z;
+        }
+
+        #[inline]
         fn deref(&self) -> &XYZ<Self::S> {
             self
         }
@@ -975,6 +960,24 @@ mod scalar {
         #[inline]
         fn new(x: T, y: T, z: T, w: T) -> Self {
             Self { x, y, z, w }
+        }
+
+        #[inline]
+        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+            Self {
+                x: slice[0],
+                y: slice[1],
+                z: slice[2],
+                w: slice[3],
+            }
+        }
+
+        #[inline]
+        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+            slice[0] = self.x;
+            slice[1] = self.y;
+            slice[2] = self.z;
+            slice[3] = self.w;
         }
 
         #[inline]
@@ -1286,20 +1289,6 @@ mod sse2 {
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
-            assert!(slice.len() >= 4);
-            unsafe { _mm_loadu_ps(slice.as_ptr()) }
-        }
-
-        #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
-            unsafe {
-                assert!(slice.len() >= 4);
-                _mm_storeu_ps(slice.as_mut_ptr(), self);
-            }
-        }
-
-        #[inline]
         fn add(self, other: Self) -> Self {
             unsafe { _mm_add_ps(self, other) }
         }
@@ -1367,6 +1356,19 @@ mod sse2 {
         }
 
         #[inline]
+        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+            Vector3::new(slice[0], slice[1], slice[2])
+        }
+
+        #[inline]
+        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+            let xyz = Vector3::deref(&self);
+            slice[0] = xyz.x;
+            slice[1] = xyz.y;
+            slice[2] = xyz.z;
+        }
+
+        #[inline]
         fn deref(&self) -> &XYZ<Self::S> {
             unsafe { &*(self as *const Self as *const XYZ<Self::S>) }
         }
@@ -1428,6 +1430,20 @@ mod sse2 {
         #[inline]
         fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
             unsafe { _mm_set_ps(w, z, y, x) }
+        }
+
+        #[inline]
+        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+            assert!(slice.len() >= 4);
+            unsafe { _mm_loadu_ps(slice.as_ptr()) }
+        }
+
+        #[inline]
+        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+            unsafe {
+                assert!(slice.len() >= 4);
+                _mm_storeu_ps(slice.as_mut_ptr(), self);
+            }
         }
 
         #[inline]

@@ -369,7 +369,7 @@ impl Vec3A {
     /// Panics if `slice` is less than three elements long.
     #[inline]
     pub fn from_slice_unaligned(slice: &[f32]) -> Self {
-        Self(Inner::from_slice_unaligned(slice))
+        Self(Vector3::from_slice_unaligned(slice))
     }
 
     /// Writes the elements of `self` to the first three elements in `slice`.
@@ -379,7 +379,7 @@ impl Vec3A {
     /// Panics if `slice` is less than three elements long.
     #[inline]
     pub fn write_to_slice_unaligned(self, slice: &mut [f32]) {
-        self.0.write_to_slice_unaligned(slice)
+        Vector3::write_to_slice_unaligned(self.0, slice)
     }
 
     /// Per element multiplication/addition of the three inputs: b + (self * a)

@@ -333,7 +333,7 @@ impl Vec4 {
     /// Panics if `slice` is less than four elements long.
     #[inline]
     pub fn from_slice_unaligned(slice: &[f32]) -> Self {
-        Self(Inner::from_slice_unaligned(slice))
+        Self(Vector4::from_slice_unaligned(slice))
     }
 
     /// Writes the elements of `self` to the first four elements in `slice`.
@@ -343,7 +343,7 @@ impl Vec4 {
     /// Panics if `slice` is less than four elements long.
     #[inline]
     pub fn write_to_slice_unaligned(self, slice: &mut [f32]) {
-        self.0.write_to_slice_unaligned(slice)
+        Vector4::write_to_slice_unaligned(self.0, slice)
     }
 
     /// Per element multiplication/addition of the three inputs: b + (self * a)
