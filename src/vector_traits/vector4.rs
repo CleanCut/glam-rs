@@ -1934,9 +1934,7 @@ mod sse2 {
 
         fn conjugate(self) -> Self {
             const SIGN: __m128 = const_m128!([-0.0, -0.0, -0.0, 0.0]);
-            unsafe {
-                _mm_xor_ps(self, SIGN)
-            }
+            unsafe { _mm_xor_ps(self, SIGN) }
         }
 
         fn lerp(self, end: Self, s: Self::S) -> Self {
