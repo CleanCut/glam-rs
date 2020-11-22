@@ -166,27 +166,6 @@ impl Vec4 {
         Vec3::new(self.x, self.y, self.z)
     }
 
-    /// Calculates the Vec4 dot product and returns answer in x lane of __m128.
-    #[cfg(vec4_sse2)]
-    #[inline]
-    unsafe fn dot_as_m128(self, other: Self) -> __m128 {
-        let x2_y2_z2_w2 = _mm_mul_ps(self.0, other.0);
-        let z2_w2_0_0 = _mm_shuffle_ps(x2_y2_z2_w2, x2_y2_z2_w2, 0b00_00_11_10);
-        let x2z2_y2w2_0_0 = _mm_add_ps(x2_y2_z2_w2, z2_w2_0_0);
-        let y2w2_0_0_0 = _mm_shuffle_ps(x2z2_y2w2_0_0, x2z2_y2w2_0_0, 0b00_00_00_01);
-        _mm_add_ps(x2z2_y2w2_0_0, y2w2_0_0_0)
-    }
-
-    /// Returns Vec4 dot in all lanes of Vec4
-    #[cfg(vec4_sse2)]
-    #[inline]
-    pub(crate) fn dot_as_vec4(self, other: Self) -> Self {
-        unsafe {
-            let dot_in_x = self.dot_as_m128(other);
-            Self(_mm_shuffle_ps(dot_in_x, dot_in_x, 0b00_00_00_00))
-        }
-    }
-
     /// Computes the 4D dot product of `self` and `other`.
     #[inline]
     pub fn dot(self, other: Self) -> f32 {
@@ -434,21 +413,14 @@ impl Vec4 {
     /// If any element is either `NaN`, positive or negative infinity, this will return `false`.
     #[inline]
     pub fn is_finite(self) -> bool {
+        // TODO: SIMD implementation
         self.x.is_finite() && self.y.is_finite() && self.z.is_finite() && self.w.is_finite()
     }
 
     /// Returns `true` if any elements are `NaN`.
     #[inline]
     pub fn is_nan(self) -> bool {
-        #[cfg(vec4_sse2)]
-        {
-            self.is_nan_mask().any()
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            self.x.is_nan() || self.y.is_nan() || self.z.is_nan() || self.w.is_nan()
-        }
+        MaskVector4::all(FloatVector::is_nan(self.0))
     }
 
     /// Returns whether `self` is length `1.0` or not.

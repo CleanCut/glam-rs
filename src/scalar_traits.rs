@@ -35,6 +35,7 @@ pub trait Float: Num + Neg<Output = Self> {
     fn round(self) -> Self;
     fn signum(self) -> Self;
     fn sqrt(self) -> Self;
+    fn acos_approx(self) -> Self;
 }
 
 impl NumConsts for f32 {
@@ -86,6 +87,10 @@ impl Float for f32 {
     fn sqrt(self) -> Self {
         f32::sqrt(self)
     }
+    #[inline(always)]
+    fn acos_approx(self) -> Self {
+        crate::f32::scalar_acos(self)
+    }
 }
 
 impl NumConsts for f64 {
@@ -136,6 +141,11 @@ impl Float for f64 {
     #[inline(always)]
     fn sqrt(self) -> Self {
         f64::sqrt(self)
+    }
+    #[inline(always)]
+    fn acos_approx(self) -> Self {
+        // TODO: clamp range
+        f64::acos(self)
     }
 }
 

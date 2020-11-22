@@ -2,7 +2,7 @@ use crate::{XY, XYZ, XYZW};
 
 const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
 
-pub trait MaskVectorConsts: Sized {
+pub trait MaskVectorConsts: Sized + Copy + Clone {
     const FALSE: Self;
 }
 
@@ -33,7 +33,7 @@ pub trait MaskVector4: MaskVector {
     fn all(self) -> bool;
 }
 
-pub trait VectorConsts: Sized {
+pub trait VectorConsts: Sized + Copy + Clone {
     const ZERO: Self;
     const ONE: Self;
 }
@@ -56,7 +56,7 @@ pub trait Vector4Consts: VectorConsts {
     const UNIT_W: Self;
 }
 
-pub trait Vector: Sized {
+pub trait Vector: Sized + Copy + Clone {
     type S: Sized;
     type Mask: Sized;
 
@@ -139,7 +139,7 @@ pub trait FloatVector: Vector {
     fn signum(self) -> Self;
 }
 
-pub trait FloatVector3: Vector3 {
+pub trait FloatVector3: FloatVector + Vector3 {
     fn dot(self, other: Self) -> Self::S;
     fn dot_into_vec(self, other: Self) -> Self;
     fn cross(self, other: Self) -> Self;
@@ -148,7 +148,7 @@ pub trait FloatVector3: Vector3 {
     fn normalize(self) -> Self;
 }
 
-pub trait FloatVector4: Vector4 {
+pub trait FloatVector4: Sized + FloatVector + Vector4 {
     fn dot(self, other: Self) -> Self::S;
     fn dot_into_vec(self, other: Self) -> Self;
     fn length(self) -> Self::S;
@@ -156,8 +156,15 @@ pub trait FloatVector4: Vector4 {
     fn normalize(self) -> Self;
 }
 
-pub trait Quaternion: FloatVector {
-    fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self;
+pub trait Quaternion: FloatVector4 {
+    // fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self;
+    // fn to_axis_angle(self) -> (XYZ<Self::S>, Self::S);
+    // fn is_near_identity(self) -> bool;
+    fn conjugate(self) -> Self;
+    fn lerp(self, end: Self, s: Self::S) -> Self;
+    fn slerp(self, end: Self, s: Self::S) -> Self;
+    fn mul_quaternion(self, other: Self) -> Self;
+    // fn rotate_vector<T: FloatVector3>(self, other: T) -> T;
 }
 
 mod scalar {
@@ -1234,6 +1241,96 @@ mod scalar {
         }
     }
 
+    impl Quaternion for XYZW<f32> {
+        // fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self {
+        // }
+
+        // fn to_axis_angle(self) -> (XYZ<Self::S>, Self::S) {
+        // }
+
+        //fn is_near_identity(self) -> bool {
+        //    // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
+        //    const THRESHOLD_ANGLE: f32 = 0.002_847_144_6;
+        //    // Because of floating point precision, we cannot represent very small rotations.
+        //    // The closest f32 to 1.0 that is not 1.0 itself yields:
+        //    // 0.99999994.acos() * 2.0  = 0.000690533954 rad
+        //    //
+        //    // An error threshold of 1.e-6 is used by default.
+        //    // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
+        //    // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
+        //    //
+        //    // We don't really care about the angle value itself, only if it's close to 0.
+        //    // This will happen whenever quat.w is close to 1.0.
+        //    // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
+        //    // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
+        //    // the shortest path.
+        //    let positive_w_angle = self.w.abs().acos_approx() * 2.0;
+        //    positive_w_angle < THRESHOLD_ANGLE
+        //}
+
+        fn conjugate(self) -> Self {
+            Self::new(-self.x, -self.y, -self.z, self.w)
+        }
+
+        fn lerp(self, end: Self, s: Self::S) -> Self {
+            glam_assert!(self.is_normalized());
+            glam_assert!(end.is_normalized());
+
+            let start = self;
+            let end = end;
+            let dot = start.dot(end);
+            let bias = if dot >= 0.0 { 1.0 } else { -1.0 };
+            let interpolated = start.add(end.scale(bias).sub(start).scale(s));
+            interpolated.normalize()
+        }
+
+        fn slerp(self, end: Self, s: Self::S) -> Self {
+            // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
+
+            glam_assert!(self.is_normalized());
+            glam_assert!(end.is_normalized());
+
+            const DOT_THRESHOLD: f32 = 0.9995;
+
+            let dot = self.dot(end);
+
+            if dot > DOT_THRESHOLD {
+                // assumes lerp returns a normalized quaternion
+                self.lerp(end, s)
+            } else {
+                // assumes scalar_acos clamps the input to [-1.0, 1.0]
+                let theta = dot.acos_approx();
+                let scale1 = f32::sin(theta * (1.0 - s));
+                let scale2 = f32::sin(theta * s);
+                let theta_sin = f32::sin(theta);
+
+                self.scale(scale1)
+                    .add(end.scale(scale2))
+                    .scale(theta_sin.recip())
+            }
+        }
+
+        // fn rotate_vector<T: FloatVector3>(self, other: T) -> T {
+        //     let w = self.w;
+        //     let b = XYZ { x: self.x, y: self.y, z: self.z };
+        //     let b2 = b.dot(b);
+        //     other * (w * w - b2) + b * (other.dot(b) * 2.0) + b.cross(other) * (w * 2.0)
+        // }
+
+        fn mul_quaternion(self, other: Self) -> Self {
+            glam_assert!(self.is_normalized());
+            glam_assert!(other.is_normalized());
+            let (x0, y0, z0, w0) = self.into_tuple();
+            let (x1, y1, z1, w1) = other.into_tuple();
+            Self::new(
+                w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1,
+                w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1,
+                w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1,
+                w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1,
+            )
+        }
+    }
+
     impl<T> From<XYZW<T>> for XYZ<T> {
         #[inline]
         fn from(v: XYZW<T>) -> Self {
@@ -1248,20 +1345,14 @@ mod scalar {
     impl<T> From<XYZW<T>> for XY<T> {
         #[inline]
         fn from(v: XYZW<T>) -> Self {
-            Self {
-                x: v.x,
-                y: v.y,
-            }
+            Self { x: v.x, y: v.y }
         }
     }
 
     impl<T> From<XYZ<T>> for XY<T> {
         #[inline]
         fn from(v: XYZ<T>) -> Self {
-            Self {
-                x: v.x,
-                y: v.y,
-            }
+            Self { x: v.x, y: v.y }
         }
     }
 }
@@ -1810,6 +1901,135 @@ mod sse2 {
             unsafe {
                 let dot = FloatVector4::dot_into_vec(self, self);
                 _mm_div_ps(self, _mm_sqrt_ps(dot))
+            }
+        }
+    }
+
+    impl Quaternion for __m128 {
+        // fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self {
+        // }
+
+        // fn to_axis_angle(self) -> (XYZ<Self::S>, Self::S) {
+        // }
+
+        //fn is_near_identity(self) -> bool {
+        //    // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
+        //    const THRESHOLD_ANGLE: f32 = 0.002_847_144_6;
+        //    // Because of floating point precision, we cannot represent very small rotations.
+        //    // The closest f32 to 1.0 that is not 1.0 itself yields:
+        //    // 0.99999994.acos() * 2.0  = 0.000690533954 rad
+        //    //
+        //    // An error threshold of 1.e-6 is used by default.
+        //    // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
+        //    // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
+        //    //
+        //    // We don't really care about the angle value itself, only if it's close to 0.
+        //    // This will happen whenever quat.w is close to 1.0.
+        //    // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
+        //    // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
+        //    // the shortest path.
+        //    let positive_w_angle = self.w.abs().acos_approx() * 2.0;
+        //    positive_w_angle < THRESHOLD_ANGLE
+        //}
+
+        fn conjugate(self) -> Self {
+            const SIGN: __m128 = const_m128!([-0.0, -0.0, -0.0, 0.0]);
+            unsafe {
+                _mm_xor_ps(self, SIGN)
+            }
+        }
+
+        fn lerp(self, end: Self, s: Self::S) -> Self {
+            glam_assert!(self.is_normalized());
+            glam_assert!(end.is_normalized());
+
+            unsafe {
+                const NEG_ZERO: __m128 = const_m128!([-0.0; 4]);
+                let start = self;
+                let end = end;
+                let dot = FloatVector4::dot_into_vec(start, end);
+                // Calculate the bias, if the dot product is positive or zero, there is no bias
+                // but if it is negative, we want to flip the 'end' rotation XYZW components
+                let bias = _mm_and_ps(dot, NEG_ZERO);
+                let interpolated = _mm_add_ps(
+                    _mm_mul_ps(_mm_sub_ps(_mm_xor_ps(end, bias), start), _mm_set_ps1(s)),
+                    start,
+                );
+                FloatVector4::normalize(interpolated)
+            }
+        }
+
+        fn slerp(self, end: Self, s: Self::S) -> Self {
+            // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
+            use crate::scalar_traits::Float;
+
+            glam_assert!(self.is_normalized());
+            glam_assert!(end.is_normalized());
+
+            const DOT_THRESHOLD: f32 = 0.9995;
+
+            let dot = FloatVector4::dot(self, end);
+
+            if dot > DOT_THRESHOLD {
+                // assumes lerp returns a normalized quaternion
+                self.lerp(end, s)
+            } else {
+                // assumes scalar_acos clamps the input to [-1.0, 1.0]
+                let theta = dot.acos_approx();
+
+                let x = 1.0 - s;
+                let y = s;
+                let z = 1.0;
+
+                unsafe {
+                    let tmp = _mm_mul_ps(_mm_set_ps1(theta), _mm_set_ps(0.0, z, y, x));
+                    let tmp = crate::f32::funcs::sse2::m128_sin(tmp);
+
+                    let scale1 = _mm_shuffle_ps(tmp, tmp, 0b00_00_00_00);
+                    let scale2 = _mm_shuffle_ps(tmp, tmp, 0b01_01_01_01);
+                    let theta_sin = _mm_shuffle_ps(tmp, tmp, 0b10_10_10_10);
+
+                    let theta_sin_recip = _mm_rcp_ps(theta_sin);
+
+                    self.mul(scale1).add(end.mul(scale2)).mul(theta_sin_recip)
+                }
+            }
+        }
+
+        fn mul_quaternion(self, other: Self) -> Self {
+            unsafe {
+                // Based on https://github.com/nfrechette/rtm `rtm::quat_mul`
+                let lhs = self;
+                let rhs = other;
+
+                const CONTROL_WZYX: __m128 = const_m128!([1.0, -1.0, 1.0, -1.0]);
+                const CONTROL_ZWXY: __m128 = const_m128!([1.0, 1.0, -1.0, -1.0]);
+                const CONTROL_YXWZ: __m128 = const_m128!([-1.0, 1.0, 1.0, -1.0]);
+
+                let r_xxxx = _mm_shuffle_ps(lhs, lhs, 0b00_00_00_00);
+                let r_yyyy = _mm_shuffle_ps(lhs, lhs, 0b01_01_01_01);
+                let r_zzzz = _mm_shuffle_ps(lhs, lhs, 0b10_10_10_10);
+                let r_wwww = _mm_shuffle_ps(lhs, lhs, 0b11_11_11_11);
+
+                let lxrw_lyrw_lzrw_lwrw = _mm_mul_ps(r_wwww, rhs);
+                let l_wzyx = _mm_shuffle_ps(rhs, rhs, 0b00_01_10_11);
+
+                let lwrx_lzrx_lyrx_lxrx = _mm_mul_ps(r_xxxx, l_wzyx);
+                let l_zwxy = _mm_shuffle_ps(l_wzyx, l_wzyx, 0b10_11_00_01);
+
+                let lwrx_nlzrx_lyrx_nlxrx = _mm_mul_ps(lwrx_lzrx_lyrx_lxrx, CONTROL_WZYX);
+
+                let lzry_lwry_lxry_lyry = _mm_mul_ps(r_yyyy, l_zwxy);
+                let l_yxwz = _mm_shuffle_ps(l_zwxy, l_zwxy, 0b00_01_10_11);
+
+                let lzry_lwry_nlxry_nlyry = _mm_mul_ps(lzry_lwry_lxry_lyry, CONTROL_ZWXY);
+
+                let lyrz_lxrz_lwrz_lzrz = _mm_mul_ps(r_zzzz, l_yxwz);
+                let result0 = _mm_add_ps(lxrw_lyrw_lzrw_lwrw, lwrx_nlzrx_lyrx_nlxrx);
+
+                let nlyrz_lxrz_lwrz_wlzrz = _mm_mul_ps(lyrz_lxrz_lwrz_lzrz, CONTROL_YXWZ);
+                let result1 = _mm_add_ps(lzry_lwry_nlxry_nlyry, nlyrz_lxrz_lwrz_wlzrz);
+                _mm_add_ps(result0, result1)
             }
         }
     }
