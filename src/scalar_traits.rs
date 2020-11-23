@@ -8,7 +8,12 @@ use core::{
 pub trait NumConsts: Sized {
     const ZERO: Self;
     const ONE: Self;
+}
+
+pub trait FloatConsts: Sized {
     const NEG_ONE: Self;
+    const TWO: Self;
+    const HALF: Self;
 }
 
 pub trait Num:
@@ -26,7 +31,7 @@ pub trait Num:
     fn max(self, other: Self) -> Self;
 }
 
-pub trait Float: Num + Neg<Output = Self> {
+pub trait Float: Num + Neg<Output = Self> + FloatConsts {
     // TODO: Move to Signed
     fn abs(self) -> Self;
     fn ceil(self) -> Self;
@@ -38,6 +43,7 @@ pub trait Float: Num + Neg<Output = Self> {
     fn sqrt(self) -> Self;
     fn acos_approx(self) -> Self;
     fn sin(self) -> Self;
+    fn sin_cos(self) -> (Self, Self);
     fn from_f32(f: f32) -> Self;
     fn from_f64(f: f64) -> Self;
 }
@@ -45,7 +51,12 @@ pub trait Float: Num + Neg<Output = Self> {
 impl NumConsts for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+}
+
+impl FloatConsts for f32 {
     const NEG_ONE: Self = -1.0;
+    const TWO: Self = 2.0;
+    const HALF: Self = 0.5;
 }
 
 impl Num for f32 {
@@ -66,43 +77,47 @@ impl Float for f32 {
     }
     #[inline(always)]
     fn from_f64(v: f64) -> Self {
-        v as f32
+        v as Self
     }
     #[inline(always)]
     fn abs(self) -> Self {
-        f32::abs(self)
+        Self::abs(self)
     }
     #[inline(always)]
     fn ceil(self) -> Self {
-        f32::ceil(self)
+        Self::ceil(self)
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        f32::floor(self)
+        Self::floor(self)
     }
     #[inline(always)]
     fn is_nan(self) -> bool {
-        f32::is_nan(self)
+        Self::is_nan(self)
     }
     #[inline(always)]
     fn recip(self) -> Self {
-        f32::recip(self)
+        Self::recip(self)
     }
     #[inline(always)]
     fn round(self) -> Self {
-        f32::round(self)
+        Self::round(self)
     }
     #[inline(always)]
     fn sin(self) -> Self {
-        f32::sin(self)
+        Self::sin(self)
+    }
+    #[inline(always)]
+    fn sin_cos(self) -> (Self, Self) {
+        Self::sin_cos(self)
     }
     #[inline(always)]
     fn signum(self) -> Self {
-        f32::signum(self)
+        Self::signum(self)
     }
     #[inline(always)]
     fn sqrt(self) -> Self {
-        f32::sqrt(self)
+        Self::sqrt(self)
     }
     #[inline(always)]
     fn acos_approx(self) -> Self {
@@ -113,7 +128,12 @@ impl Float for f32 {
 impl NumConsts for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+}
+
+impl FloatConsts for f64 {
     const NEG_ONE: Self = -1.0;
+    const TWO: Self = 2.0;
+    const HALF: Self = 0.5;
 }
 
 impl Num for f64 {
@@ -130,7 +150,7 @@ impl Num for f64 {
 impl Float for f64 {
     #[inline(always)]
     fn from_f32(v: f32) -> Self {
-        v as f64
+        v as Self
     }
     #[inline(always)]
     fn from_f64(v: f64) -> Self {
@@ -138,44 +158,48 @@ impl Float for f64 {
     }
     #[inline(always)]
     fn abs(self) -> Self {
-        f64::abs(self)
+        Self::abs(self)
     }
     #[inline(always)]
     fn ceil(self) -> Self {
-        f64::ceil(self)
+        Self::ceil(self)
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        f64::floor(self)
+        Self::floor(self)
     }
     #[inline(always)]
     fn is_nan(self) -> bool {
-        f64::is_nan(self)
+        Self::is_nan(self)
     }
     #[inline(always)]
     fn recip(self) -> Self {
-        f64::recip(self)
+        Self::recip(self)
     }
     #[inline(always)]
     fn round(self) -> Self {
-        f64::round(self)
+        Self::round(self)
     }
     #[inline(always)]
     fn sin(self) -> Self {
-        f64::sin(self)
+        Self::sin(self)
+    }
+    #[inline(always)]
+    fn sin_cos(self) -> (Self, Self) {
+        Self::sin_cos(self)
     }
     #[inline(always)]
     fn signum(self) -> Self {
-        f64::signum(self)
+        Self::signum(self)
     }
     #[inline(always)]
     fn sqrt(self) -> Self {
-        f64::sqrt(self)
+        Self::sqrt(self)
     }
     #[inline(always)]
     fn acos_approx(self) -> Self {
         // TODO: clamp range
-        f64::acos(self)
+        Self::acos(self)
     }
 }
 

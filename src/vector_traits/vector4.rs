@@ -57,10 +57,10 @@ pub trait Vector4Consts: VectorConsts {
     const UNIT_W: Self;
 }
 
-pub trait Vector<Scalar> {
+pub trait Vector<T>: Sized {
     type Mask;
 
-    fn splat(s: Scalar) -> Self;
+    fn splat(s: T) -> Self;
 
     fn select(mask: Self::Mask, a: Self, b: Self) -> Self;
 
@@ -77,58 +77,58 @@ pub trait Vector<Scalar> {
     fn mul_add(self, a: Self, b: Self) -> Self;
     fn sub(self, other: Self) -> Self;
 
-    fn scale(self, other: Scalar) -> Self;
+    fn scale(self, other: T) -> Self;
 
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
 
-    fn min_element(self) -> Scalar;
-    fn max_element(self) -> Scalar;
+    fn min_element(self) -> T;
+    fn max_element(self) -> T;
 }
 
-pub trait Vector2<Scalar>: Vector<Scalar> {
-    fn new(x: Scalar, y: Scalar) -> Self;
-    fn from_slice_unaligned(slice: &[Scalar]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Scalar]);
-    fn deref(&self) -> &XY<Scalar>;
-    fn deref_mut(&mut self) -> &mut XY<Scalar>;
-    fn into_xyz(self, z: Scalar) -> XYZ<Scalar>;
-    fn into_xyzw(self, z: Scalar, w: Scalar) -> XYZW<Scalar>;
-    fn from_array(a: [Scalar; 2]) -> Self;
-    fn into_array(self) -> [Scalar; 2];
-    fn from_tuple(t: (Scalar, Scalar)) -> Self;
-    fn into_tuple(self) -> (Scalar, Scalar);
+pub trait Vector2<T>: Vector<T> {
+    fn new(x: T, y: T) -> Self;
+    fn from_slice_unaligned(slice: &[T]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [T]);
+    fn deref(&self) -> &XY<T>;
+    fn deref_mut(&mut self) -> &mut XY<T>;
+    fn into_xyz(self, z: T) -> XYZ<T>;
+    fn into_xyzw(self, z: T, w: T) -> XYZW<T>;
+    fn from_array(a: [T; 2]) -> Self;
+    fn into_array(self) -> [T; 2];
+    fn from_tuple(t: (T, T)) -> Self;
+    fn into_tuple(self) -> (T, T);
 }
 
-pub trait Vector3<Scalar>: Vector<Scalar> {
-    fn new(x: Scalar, y: Scalar, z: Scalar) -> Self;
-    fn from_slice_unaligned(slice: &[Scalar]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Scalar]);
-    fn deref(&self) -> &XYZ<Scalar>;
-    fn deref_mut(&mut self) -> &mut XYZ<Scalar>;
-    fn into_xy(self) -> XY<Scalar>;
-    fn into_xyzw(self, w: Scalar) -> XYZW<Scalar>;
-    fn from_array(a: [Scalar; 3]) -> Self;
-    fn into_array(self) -> [Scalar; 3];
-    fn from_tuple(t: (Scalar, Scalar, Scalar)) -> Self;
-    fn into_tuple(self) -> (Scalar, Scalar, Scalar);
+pub trait Vector3<T>: Vector<T> {
+    fn new(x: T, y: T, z: T) -> Self;
+    fn from_slice_unaligned(slice: &[T]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [T]);
+    fn deref(&self) -> &XYZ<T>;
+    fn deref_mut(&mut self) -> &mut XYZ<T>;
+    fn into_xy(self) -> XY<T>;
+    fn into_xyzw(self, w: T) -> XYZW<T>;
+    fn from_array(a: [T; 3]) -> Self;
+    fn into_array(self) -> [T; 3];
+    fn from_tuple(t: (T, T, T)) -> Self;
+    fn into_tuple(self) -> (T, T, T);
 }
 
-pub trait Vector4<Scalar>: Vector<Scalar> {
-    fn new(x: Scalar, y: Scalar, z: Scalar, w: Scalar) -> Self;
-    fn from_slice_unaligned(slice: &[Scalar]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Scalar]);
-    fn deref(&self) -> &XYZW<Scalar>;
-    fn deref_mut(&mut self) -> &mut XYZW<Scalar>;
-    fn into_xy(self) -> XY<Scalar>;
-    fn into_xyz(self) -> XYZ<Scalar>;
-    fn from_array(a: [Scalar; 4]) -> Self;
-    fn into_array(self) -> [Scalar; 4];
-    fn from_tuple(t: (Scalar, Scalar, Scalar, Scalar)) -> Self;
-    fn into_tuple(self) -> (Scalar, Scalar, Scalar, Scalar);
+pub trait Vector4<T>: Vector<T> {
+    fn new(x: T, y: T, z: T, w: T) -> Self;
+    fn from_slice_unaligned(slice: &[T]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [T]);
+    fn deref(&self) -> &XYZW<T>;
+    fn deref_mut(&mut self) -> &mut XYZW<T>;
+    fn into_xy(self) -> XY<T>;
+    fn into_xyz(self) -> XYZ<T>;
+    fn from_array(a: [T; 4]) -> Self;
+    fn into_array(self) -> [T; 4];
+    fn from_tuple(t: (T, T, T, T)) -> Self;
+    fn into_tuple(self) -> (T, T, T, T);
 }
 
-pub trait FloatVector<Scalar: Float>: Vector<Scalar> {
+pub trait FloatVector<T: Float>: Vector<T> {
     fn abs(self) -> Self;
     fn ceil(self) -> Self;
     fn floor(self) -> Self;
@@ -139,30 +139,86 @@ pub trait FloatVector<Scalar: Float>: Vector<Scalar> {
     fn signum(self) -> Self;
 }
 
-pub trait FloatVector3<Scalar: Float>: FloatVector<Scalar> + Vector3<Scalar> {
-    fn dot(self, other: Self) -> Scalar;
+pub trait FloatVector3<T: Float>: FloatVector<T> + Vector3<T> {
+    fn dot(self, other: Self) -> T;
     fn dot_into_vec(self, other: Self) -> Self;
     fn cross(self, other: Self) -> Self;
-    fn length(self) -> Scalar;
-    fn length_recip(self) -> Scalar;
+    fn length(self) -> T;
+    fn length_recip(self) -> T;
     fn normalize(self) -> Self;
 }
 
-pub trait FloatVector4<Scalar: Float>: FloatVector<Scalar> + Vector4<Scalar> {
-    fn dot(self, other: Self) -> Scalar;
+pub trait FloatVector4<T: Float>: FloatVector<T> + Vector4<T> {
+    fn dot(self, other: Self) -> T;
     fn dot_into_vec(self, other: Self) -> Self;
-    fn length(self) -> Scalar;
-    fn length_recip(self) -> Scalar;
+    fn length(self) -> T;
+    fn length_recip(self) -> T;
     fn normalize(self) -> Self;
 }
 
-pub trait Quaternion<Scalar: Float>: FloatVector4<Scalar> {
-    // fn from_axis_angle(axis: XYZ<Scalar>, angle: Scalar) -> Self;
-    // fn to_axis_angle(self) -> (XYZ<Scalar>, Scalar);
-    // fn is_near_identity(self) -> bool;
+pub trait Quaternion<T: Float>: FloatVector4<T> {
+    fn from_axis_angle(axis: XYZ<T>, angle: T) -> Self {
+        glam_assert!(axis.is_normalized());
+        let (s, c) = (angle * T::HALF).sin_cos();
+        let v = axis.scale(s);
+        Self::new(v.x, v.y, v.z, c)
+    }
+
+    fn from_rotation_ypr(yaw: T, pitch: T, roll: T) -> Self {
+        // Self::from_rotation_y(yaw) * Self::from_rotation_x(pitch) * Self::from_rotation_z(roll)
+        let (y0, w0) = (yaw * T::HALF).sin_cos();
+        let (x1, w1) = (pitch * T::HALF).sin_cos();
+        let (z2, w2) = (roll * T::HALF).sin_cos();
+
+        let x3 = w0 * x1;
+        let y3 = y0 * w1;
+        let z3 = -y0 * x1;
+        let w3 = w0 * w1;
+
+        let x4 = x3 * w2 + y3 * z2;
+        let y4 = -x3 * z2 + y3 * w2;
+        let z4 = w3 * z2 + z3 * w2;
+        let w4 = w3 * w2 - z3 * z2;
+
+        Self::new(x4, y4, z4, w4)
+    }
+
+    fn to_axis_angle(self) -> (XYZ<T>, T) {
+        // const EPSILON: f32 = 1.0e-8;
+        // const EPSILON_SQUARED: f32 = EPSILON * EPSILON;
+        let (x, y, z, w) = Vector4::into_tuple(self);
+        let angle = w.acos_approx() * T::TWO;
+        let scale_sq = (T::ONE - w * w).max(T::ZERO);
+        if scale_sq >= T::from_f32(1.0e-8 * 1.0e-8) {
+            (XYZ { x, y, z }.scale(scale_sq.sqrt().recip()), angle)
+        } else {
+            (Vector3Consts::UNIT_X, angle)
+        }
+    }
+
+    fn is_near_identity(self) -> bool {
+           // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
+           let threshold_angle = T::from_f64(0.002_847_144_6);
+           // Because of floating point precision, we cannot represent very small rotations.
+           // The closest f32 to 1.0 that is not 1.0 itself yields:
+           // 0.99999994.acos() * 2.0  = 0.000690533954 rad
+           //
+           // An error threshold of 1.e-6 is used by default.
+           // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
+           // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
+           //
+           // We don't really care about the angle value itself, only if it's close to 0.
+           // This will happen whenever quat.w is close to 1.0.
+           // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
+           // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
+           // the shortest path.
+           let positive_w_angle = self.deref().w.abs().acos_approx() * T::TWO;
+           positive_w_angle < threshold_angle
+    }
+
     fn conjugate(self) -> Self;
-    fn lerp(self, end: Self, s: Scalar) -> Self;
-    fn slerp(self, end: Self, s: Scalar) -> Self;
+    fn lerp(self, end: Self, s: T) -> Self;
+    fn slerp(self, end: Self, s: T) -> Self;
     fn mul_quaternion(self, other: Self) -> Self;
     // fn rotate_vector<T: FloatVector3>(self, other: T) -> T;
 }
@@ -1240,10 +1296,10 @@ mod scalar {
     }
 
     impl<T: Float>  Quaternion<T> for XYZW<T> {
-        // fn from_axis_angle(axis: XYZ<Scalar>, angle: Scalar) -> Self {
+        // fn from_axis_angle(axis: XYZ<T>, angle: T) -> Self {
         // }
 
-        // fn to_axis_angle(self) -> (XYZ<Scalar>, Scalar) {
+        // fn to_axis_angle(self) -> (XYZ<T>, T) {
         // }
 
         //fn is_near_identity(self) -> bool {
@@ -1901,10 +1957,10 @@ mod sse2 {
     }
 
     impl Quaternion<f32> for __m128 {
-        // fn from_axis_angle(axis: XYZ<Scalar>, angle: Scalar) -> Self {
+        // fn from_axis_angle(axis: XYZ<T>, angle: T) -> Self {
         // }
 
-        // fn to_axis_angle(self) -> (XYZ<Scalar>, Scalar) {
+        // fn to_axis_angle(self) -> (XYZ<T>, T) {
         // }
 
         //fn is_near_identity(self) -> bool {
@@ -2061,22 +2117,3 @@ mod sse2 {
     }
 }
 
-//fn is_near_identity<T: Quaternion<S: Float>>(q: T) -> bool {
-//           // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
-//           const THRESHOLD_ANGLE: f32 = 0.002_847_144_6;
-//           // Because of floating point precision, we cannot represent very small rotations.
-//           // The closest f32 to 1.0 that is not 1.0 itself yields:
-//           // 0.99999994.acos() * 2.0  = 0.000690533954 rad
-//           //
-//           // An error threshold of 1.e-6 is used by default.
-//           // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
-//           // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
-//           //
-//           // We don't really care about the angle value itself, only if it's close to 0.
-//           // This will happen whenever quat.w is close to 1.0.
-//           // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
-//           // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
-//           // the shortest path.
-//           let positive_w_angle = q.deref().w.abs().acos_approx() * 2.0;
-//           positive_w_angle < THRESHOLD_ANGLE
-//}

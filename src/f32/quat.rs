@@ -113,6 +113,8 @@ impl Quat {
     /// Create a quaterion for a normalized rotation axis and angle (in radians).
     #[inline]
     pub fn from_axis_angle(axis: Vec3, angle: f32) -> Self {
+        // TODO: Once Vec3 is converted
+        // Self(Inner::from_axis_angle(axis.0, angle))
         glam_assert!(axis.is_normalized());
         let (s, c) = scalar_sin_cos(angle * 0.5);
         let v = axis * s;
@@ -144,22 +146,7 @@ impl Quat {
     /// Create a quaternion from the given yaw (around y), pitch (around x) and roll (around z)
     /// in radians.
     pub fn from_rotation_ypr(yaw: f32, pitch: f32, roll: f32) -> Self {
-        // Self::from_rotation_y(yaw) * Self::from_rotation_x(pitch) * Self::from_rotation_z(roll)
-        let (y0, w0) = scalar_sin_cos(yaw * 0.5);
-        let (x1, w1) = scalar_sin_cos(pitch * 0.5);
-        let (z2, w2) = scalar_sin_cos(roll * 0.5);
-
-        let x3 = w0 * x1;
-        let y3 = y0 * w1;
-        let z3 = -y0 * x1;
-        let w3 = w0 * w1;
-
-        let x4 = x3 * w2 + y3 * z2;
-        let y4 = -x3 * z2 + y3 * w2;
-        let z4 = w3 * z2 + z3 * w2;
-        let w4 = w3 * w2 - z3 * z2;
-
-        Self::from_xyzw(x4, y4, z4, w4)
+        Self(Inner::from_rotation_ypr(yaw, pitch, roll))
     }
 
     #[inline]
@@ -316,24 +303,7 @@ impl Quat {
 
     #[inline]
     pub fn is_near_identity(self) -> bool {
-        use crate::scalar_traits::Float;
-        // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
-        const THRESHOLD_ANGLE: f32 = 0.002_847_144_6;
-        // Because of floating point precision, we cannot represent very small rotations.
-        // The closest f32 to 1.0 that is not 1.0 itself yields:
-        // 0.99999994.acos() * 2.0  = 0.000690533954 rad
-        //
-        // An error threshold of 1.e-6 is used by default.
-        // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
-        // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
-        //
-        // We don't really care about the angle value itself, only if it's close to 0.
-        // This will happen whenever quat.w is close to 1.0.
-        // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
-        // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
-        // the shortest path.
-        let positive_w_angle = self.w.abs().acos_approx() * 2.0;
-        positive_w_angle < THRESHOLD_ANGLE
+        self.0.is_near_identity()
     }
 
     /// Returns true if the absolute difference of all elements between `self`
