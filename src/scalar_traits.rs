@@ -8,6 +8,7 @@ use core::{
 pub trait NumConsts: Sized {
     const ZERO: Self;
     const ONE: Self;
+    const NEG_ONE: Self;
 }
 
 pub trait Num:
@@ -36,11 +37,15 @@ pub trait Float: Num + Neg<Output = Self> {
     fn signum(self) -> Self;
     fn sqrt(self) -> Self;
     fn acos_approx(self) -> Self;
+    fn sin(self) -> Self;
+    fn from_f32(f: f32) -> Self;
+    fn from_f64(f: f64) -> Self;
 }
 
 impl NumConsts for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const NEG_ONE: Self = -1.0;
 }
 
 impl Num for f32 {
@@ -55,6 +60,14 @@ impl Num for f32 {
 }
 
 impl Float for f32 {
+    #[inline(always)]
+    fn from_f32(v: f32) -> Self {
+        v
+    }
+    #[inline(always)]
+    fn from_f64(v: f64) -> Self {
+        v as f32
+    }
     #[inline(always)]
     fn abs(self) -> Self {
         f32::abs(self)
@@ -80,6 +93,10 @@ impl Float for f32 {
         f32::round(self)
     }
     #[inline(always)]
+    fn sin(self) -> Self {
+        f32::sin(self)
+    }
+    #[inline(always)]
     fn signum(self) -> Self {
         f32::signum(self)
     }
@@ -96,6 +113,7 @@ impl Float for f32 {
 impl NumConsts for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const NEG_ONE: Self = -1.0;
 }
 
 impl Num for f64 {
@@ -110,6 +128,14 @@ impl Num for f64 {
 }
 
 impl Float for f64 {
+    #[inline(always)]
+    fn from_f32(v: f32) -> Self {
+        v as f64
+    }
+    #[inline(always)]
+    fn from_f64(v: f64) -> Self {
+        v
+    }
     #[inline(always)]
     fn abs(self) -> Self {
         f64::abs(self)
@@ -133,6 +159,10 @@ impl Float for f64 {
     #[inline(always)]
     fn round(self) -> Self {
         f64::round(self)
+    }
+    #[inline(always)]
+    fn sin(self) -> Self {
+        f64::sin(self)
     }
     #[inline(always)]
     fn signum(self) -> Self {

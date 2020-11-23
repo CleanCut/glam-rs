@@ -1,8 +1,9 @@
 use crate::{XY, XYZ, XYZW};
+use crate::scalar_traits::Float;
 
 const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
 
-pub trait MaskVectorConsts: Sized + Copy + Clone {
+pub trait MaskVectorConsts {
     const FALSE: Self;
 }
 
@@ -33,7 +34,7 @@ pub trait MaskVector4: MaskVector {
     fn all(self) -> bool;
 }
 
-pub trait VectorConsts: Sized + Copy + Clone {
+pub trait VectorConsts {
     const ZERO: Self;
     const ONE: Self;
 }
@@ -56,11 +57,10 @@ pub trait Vector4Consts: VectorConsts {
     const UNIT_W: Self;
 }
 
-pub trait Vector: Sized + Copy + Clone {
-    type S: Sized;
-    type Mask: Sized;
+pub trait Vector<Scalar> {
+    type Mask;
 
-    fn splat(s: Self::S) -> Self;
+    fn splat(s: Scalar) -> Self;
 
     fn select(mask: Self::Mask, a: Self, b: Self) -> Self;
 
@@ -77,58 +77,58 @@ pub trait Vector: Sized + Copy + Clone {
     fn mul_add(self, a: Self, b: Self) -> Self;
     fn sub(self, other: Self) -> Self;
 
-    fn scale(self, other: Self::S) -> Self;
+    fn scale(self, other: Scalar) -> Self;
 
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
 
-    fn min_element(self) -> Self::S;
-    fn max_element(self) -> Self::S;
+    fn min_element(self) -> Scalar;
+    fn max_element(self) -> Scalar;
 }
 
-pub trait Vector2: Vector {
-    fn new(x: Self::S, y: Self::S) -> Self;
-    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
-    fn deref(&self) -> &XY<Self::S>;
-    fn deref_mut(&mut self) -> &mut XY<Self::S>;
-    fn into_xyz(self, z: Self::S) -> XYZ<Self::S>;
-    fn into_xyzw(self, z: Self::S, w: Self::S) -> XYZW<Self::S>;
-    fn from_array(a: [Self::S; 2]) -> Self;
-    fn into_array(self) -> [Self::S; 2];
-    fn from_tuple(t: (Self::S, Self::S)) -> Self;
-    fn into_tuple(self) -> (Self::S, Self::S);
+pub trait Vector2<Scalar>: Vector<Scalar> {
+    fn new(x: Scalar, y: Scalar) -> Self;
+    fn from_slice_unaligned(slice: &[Scalar]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [Scalar]);
+    fn deref(&self) -> &XY<Scalar>;
+    fn deref_mut(&mut self) -> &mut XY<Scalar>;
+    fn into_xyz(self, z: Scalar) -> XYZ<Scalar>;
+    fn into_xyzw(self, z: Scalar, w: Scalar) -> XYZW<Scalar>;
+    fn from_array(a: [Scalar; 2]) -> Self;
+    fn into_array(self) -> [Scalar; 2];
+    fn from_tuple(t: (Scalar, Scalar)) -> Self;
+    fn into_tuple(self) -> (Scalar, Scalar);
 }
 
-pub trait Vector3: Vector {
-    fn new(x: Self::S, y: Self::S, z: Self::S) -> Self;
-    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
-    fn deref(&self) -> &XYZ<Self::S>;
-    fn deref_mut(&mut self) -> &mut XYZ<Self::S>;
-    fn into_xy(self) -> XY<Self::S>;
-    fn into_xyzw(self, w: Self::S) -> XYZW<Self::S>;
-    fn from_array(a: [Self::S; 3]) -> Self;
-    fn into_array(self) -> [Self::S; 3];
-    fn from_tuple(t: (Self::S, Self::S, Self::S)) -> Self;
-    fn into_tuple(self) -> (Self::S, Self::S, Self::S);
+pub trait Vector3<Scalar>: Vector<Scalar> {
+    fn new(x: Scalar, y: Scalar, z: Scalar) -> Self;
+    fn from_slice_unaligned(slice: &[Scalar]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [Scalar]);
+    fn deref(&self) -> &XYZ<Scalar>;
+    fn deref_mut(&mut self) -> &mut XYZ<Scalar>;
+    fn into_xy(self) -> XY<Scalar>;
+    fn into_xyzw(self, w: Scalar) -> XYZW<Scalar>;
+    fn from_array(a: [Scalar; 3]) -> Self;
+    fn into_array(self) -> [Scalar; 3];
+    fn from_tuple(t: (Scalar, Scalar, Scalar)) -> Self;
+    fn into_tuple(self) -> (Scalar, Scalar, Scalar);
 }
 
-pub trait Vector4: Vector {
-    fn new(x: Self::S, y: Self::S, z: Self::S, w: Self::S) -> Self;
-    fn from_slice_unaligned(slice: &[Self::S]) -> Self;
-    fn write_to_slice_unaligned(self, slice: &mut [Self::S]);
-    fn deref(&self) -> &XYZW<Self::S>;
-    fn deref_mut(&mut self) -> &mut XYZW<Self::S>;
-    fn into_xy(self) -> XY<Self::S>;
-    fn into_xyz(self) -> XYZ<Self::S>;
-    fn from_array(a: [Self::S; 4]) -> Self;
-    fn into_array(self) -> [Self::S; 4];
-    fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self;
-    fn into_tuple(self) -> (Self::S, Self::S, Self::S, Self::S);
+pub trait Vector4<Scalar>: Vector<Scalar> {
+    fn new(x: Scalar, y: Scalar, z: Scalar, w: Scalar) -> Self;
+    fn from_slice_unaligned(slice: &[Scalar]) -> Self;
+    fn write_to_slice_unaligned(self, slice: &mut [Scalar]);
+    fn deref(&self) -> &XYZW<Scalar>;
+    fn deref_mut(&mut self) -> &mut XYZW<Scalar>;
+    fn into_xy(self) -> XY<Scalar>;
+    fn into_xyz(self) -> XYZ<Scalar>;
+    fn from_array(a: [Scalar; 4]) -> Self;
+    fn into_array(self) -> [Scalar; 4];
+    fn from_tuple(t: (Scalar, Scalar, Scalar, Scalar)) -> Self;
+    fn into_tuple(self) -> (Scalar, Scalar, Scalar, Scalar);
 }
 
-pub trait FloatVector: Vector {
+pub trait FloatVector<Scalar: Float>: Vector<Scalar> {
     fn abs(self) -> Self;
     fn ceil(self) -> Self;
     fn floor(self) -> Self;
@@ -139,30 +139,30 @@ pub trait FloatVector: Vector {
     fn signum(self) -> Self;
 }
 
-pub trait FloatVector3: FloatVector + Vector3 {
-    fn dot(self, other: Self) -> Self::S;
+pub trait FloatVector3<Scalar: Float>: FloatVector<Scalar> + Vector3<Scalar> {
+    fn dot(self, other: Self) -> Scalar;
     fn dot_into_vec(self, other: Self) -> Self;
     fn cross(self, other: Self) -> Self;
-    fn length(self) -> Self::S;
-    fn length_recip(self) -> Self::S;
+    fn length(self) -> Scalar;
+    fn length_recip(self) -> Scalar;
     fn normalize(self) -> Self;
 }
 
-pub trait FloatVector4: Sized + FloatVector + Vector4 {
-    fn dot(self, other: Self) -> Self::S;
+pub trait FloatVector4<Scalar: Float>: FloatVector<Scalar> + Vector4<Scalar> {
+    fn dot(self, other: Self) -> Scalar;
     fn dot_into_vec(self, other: Self) -> Self;
-    fn length(self) -> Self::S;
-    fn length_recip(self) -> Self::S;
+    fn length(self) -> Scalar;
+    fn length_recip(self) -> Scalar;
     fn normalize(self) -> Self;
 }
 
-pub trait Quaternion: FloatVector4 {
-    // fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self;
-    // fn to_axis_angle(self) -> (XYZ<Self::S>, Self::S);
+pub trait Quaternion<Scalar: Float>: FloatVector4<Scalar> {
+    // fn from_axis_angle(axis: XYZ<Scalar>, angle: Scalar) -> Self;
+    // fn to_axis_angle(self) -> (XYZ<Scalar>, Scalar);
     // fn is_near_identity(self) -> bool;
     fn conjugate(self) -> Self;
-    fn lerp(self, end: Self, s: Self::S) -> Self;
-    fn slerp(self, end: Self, s: Self::S) -> Self;
+    fn lerp(self, end: Self, s: Scalar) -> Self;
+    fn slerp(self, end: Self, s: Scalar) -> Self;
     fn mul_quaternion(self, other: Self) -> Self;
     // fn rotate_vector<T: FloatVector3>(self, other: T) -> T;
 }
@@ -531,8 +531,7 @@ mod scalar {
         };
     }
 
-    impl<T: Num> Vector for XY<T> {
-        type S = T;
+    impl<T: Num> Vector<T> for XY<T> {
         type Mask = XY<u32>;
 
         #[inline]
@@ -603,7 +602,7 @@ mod scalar {
             self.map2(other, |a, b| a - b)
         }
 
-        fn scale(self, other: Self::S) -> Self {
+        fn scale(self, other: T) -> Self {
             self.map(|a| a * other)
         }
 
@@ -618,18 +617,17 @@ mod scalar {
         }
 
         #[inline]
-        fn min_element(self) -> Self::S {
+        fn min_element(self) -> T {
             self.x.min(self.y)
         }
 
         #[inline]
-        fn max_element(self) -> Self::S {
+        fn max_element(self) -> T {
             self.x.max(self.y)
         }
     }
 
-    impl<T: Num> Vector for XYZ<T> {
-        type S = T;
+    impl<T: Num> Vector<T> for XYZ<T> {
         type Mask = XYZ<u32>;
 
         #[inline]
@@ -701,7 +699,8 @@ mod scalar {
             self.map2(other, |a, b| a - b)
         }
 
-        fn scale(self, other: Self::S) -> Self {
+        #[inline]
+        fn scale(self, other: T) -> Self {
             self.map(|a| a * other)
         }
 
@@ -716,18 +715,17 @@ mod scalar {
         }
 
         #[inline]
-        fn min_element(self) -> Self::S {
+        fn min_element(self) -> T {
             self.x.min(self.y.min(self.z))
         }
 
         #[inline]
-        fn max_element(self) -> Self::S {
+        fn max_element(self) -> T {
             self.x.max(self.y.max(self.z))
         }
     }
 
-    impl<T: Num> Vector for XYZW<T> {
-        type S = T;
+    impl<T: Num> Vector<T> for XYZW<T> {
         type Mask = XYZW<u32>;
 
         #[inline]
@@ -805,7 +803,7 @@ mod scalar {
             self.map2(other, |a, b| a - b)
         }
 
-        fn scale(self, other: Self::S) -> Self {
+        fn scale(self, other: T) -> Self {
             self.map(|a| a * other)
         }
 
@@ -820,24 +818,24 @@ mod scalar {
         }
 
         #[inline]
-        fn min_element(self) -> Self::S {
+        fn min_element(self) -> T {
             self.x.min(self.y.min(self.z.min(self.w)))
         }
 
         #[inline]
-        fn max_element(self) -> Self::S {
+        fn max_element(self) -> T {
             self.x.max(self.y.max(self.z.min(self.w)))
         }
     }
 
-    impl<T: Num> Vector2 for XY<T> {
+    impl<T: Num> Vector2<T> for XY<T> {
         #[inline]
         fn new(x: T, y: T) -> Self {
             Self { x, y }
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+        fn from_slice_unaligned(slice: &[T]) -> Self {
             Self {
                 x: slice[0],
                 y: slice[1],
@@ -845,23 +843,23 @@ mod scalar {
         }
 
         #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+        fn write_to_slice_unaligned(self, slice: &mut [T]) {
             slice[0] = self.x;
             slice[1] = self.y;
         }
 
         #[inline]
-        fn deref(&self) -> &XY<Self::S> {
+        fn deref(&self) -> &XY<T> {
             self
         }
 
         #[inline]
-        fn deref_mut(&mut self) -> &mut XY<Self::S> {
+        fn deref_mut(&mut self) -> &mut XY<T> {
             self
         }
 
         #[inline]
-        fn into_xyz(self, z: Self::S) -> XYZ<Self::S> {
+        fn into_xyz(self, z: T) -> XYZ<T> {
             XYZ {
                 x: self.x,
                 y: self.y,
@@ -870,7 +868,7 @@ mod scalar {
         }
 
         #[inline]
-        fn into_xyzw(self, z: Self::S, w: Self::S) -> XYZW<Self::S> {
+        fn into_xyzw(self, z: T, w: T) -> XYZW<T> {
             XYZW {
                 x: self.x,
                 y: self.y,
@@ -880,34 +878,34 @@ mod scalar {
         }
 
         #[inline]
-        fn from_array(a: [Self::S; 2]) -> Self {
+        fn from_array(a: [T; 2]) -> Self {
             Self { x: a[0], y: a[1] }
         }
 
         #[inline]
-        fn into_array(self) -> [Self::S; 2] {
+        fn into_array(self) -> [T; 2] {
             [self.x, self.y]
         }
 
         #[inline]
-        fn from_tuple(t: (Self::S, Self::S)) -> Self {
+        fn from_tuple(t: (T, T)) -> Self {
             Self::new(t.0, t.1)
         }
 
         #[inline]
-        fn into_tuple(self) -> (Self::S, Self::S) {
+        fn into_tuple(self) -> (T, T) {
             (self.x, self.y)
         }
     }
 
-    impl<T: Num> Vector3 for XYZ<T> {
+    impl<T: Num> Vector3<T> for XYZ<T> {
         #[inline]
         fn new(x: T, y: T, z: T) -> Self {
             Self { x, y, z }
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+        fn from_slice_unaligned(slice: &[T]) -> Self {
             Self {
                 x: slice[0],
                 y: slice[1],
@@ -916,24 +914,24 @@ mod scalar {
         }
 
         #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+        fn write_to_slice_unaligned(self, slice: &mut [T]) {
             slice[0] = self.x;
             slice[1] = self.y;
             slice[2] = self.z;
         }
 
         #[inline]
-        fn deref(&self) -> &XYZ<Self::S> {
+        fn deref(&self) -> &XYZ<T> {
             self
         }
 
         #[inline]
-        fn deref_mut(&mut self) -> &mut XYZ<Self::S> {
+        fn deref_mut(&mut self) -> &mut XYZ<T> {
             self
         }
 
         #[inline]
-        fn into_xy(self) -> XY<Self::S> {
+        fn into_xy(self) -> XY<T> {
             XY {
                 x: self.x,
                 y: self.y,
@@ -941,7 +939,7 @@ mod scalar {
         }
 
         #[inline]
-        fn into_xyzw(self, w: Self::S) -> XYZW<Self::S> {
+        fn into_xyzw(self, w: T) -> XYZW<T> {
             XYZW {
                 x: self.x,
                 y: self.y,
@@ -951,7 +949,7 @@ mod scalar {
         }
 
         #[inline]
-        fn from_array(a: [Self::S; 3]) -> Self {
+        fn from_array(a: [T; 3]) -> Self {
             Self {
                 x: a[0],
                 y: a[1],
@@ -960,29 +958,29 @@ mod scalar {
         }
 
         #[inline]
-        fn into_array(self) -> [Self::S; 3] {
+        fn into_array(self) -> [T; 3] {
             [self.x, self.y, self.z]
         }
 
         #[inline]
-        fn from_tuple(t: (Self::S, Self::S, Self::S)) -> Self {
+        fn from_tuple(t: (T, T, T)) -> Self {
             Self::new(t.0, t.1, t.2)
         }
 
         #[inline]
-        fn into_tuple(self) -> (Self::S, Self::S, Self::S) {
+        fn into_tuple(self) -> (T, T, T) {
             (self.x, self.y, self.z)
         }
     }
 
-    impl<T: Num> Vector4 for XYZW<T> {
+    impl<T: Num> Vector4<T> for XYZW<T> {
         #[inline]
         fn new(x: T, y: T, z: T, w: T) -> Self {
             Self { x, y, z, w }
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+        fn from_slice_unaligned(slice: &[T]) -> Self {
             Self {
                 x: slice[0],
                 y: slice[1],
@@ -992,7 +990,7 @@ mod scalar {
         }
 
         #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+        fn write_to_slice_unaligned(self, slice: &mut [T]) {
             slice[0] = self.x;
             slice[1] = self.y;
             slice[2] = self.z;
@@ -1000,17 +998,17 @@ mod scalar {
         }
 
         #[inline]
-        fn deref(&self) -> &XYZW<Self::S> {
+        fn deref(&self) -> &XYZW<T> {
             self
         }
 
         #[inline]
-        fn deref_mut(&mut self) -> &mut XYZW<Self::S> {
+        fn deref_mut(&mut self) -> &mut XYZW<T> {
             self
         }
 
         #[inline]
-        fn into_xy(self) -> XY<Self::S> {
+        fn into_xy(self) -> XY<T> {
             XY {
                 x: self.x,
                 y: self.y,
@@ -1018,7 +1016,7 @@ mod scalar {
         }
 
         #[inline]
-        fn into_xyz(self) -> XYZ<Self::S> {
+        fn into_xyz(self) -> XYZ<T> {
             XYZ {
                 x: self.x,
                 y: self.y,
@@ -1027,7 +1025,7 @@ mod scalar {
         }
 
         #[inline]
-        fn from_array(a: [Self::S; 4]) -> Self {
+        fn from_array(a: [T; 4]) -> Self {
             Self {
                 x: a[0],
                 y: a[1],
@@ -1037,22 +1035,22 @@ mod scalar {
         }
 
         #[inline]
-        fn into_array(self) -> [Self::S; 4] {
+        fn into_array(self) -> [T; 4] {
             [self.x, self.y, self.z, self.w]
         }
 
         #[inline]
-        fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self {
+        fn from_tuple(t: (T, T, T, T)) -> Self {
             Self::new(t.0, t.1, t.2, t.3)
         }
 
         #[inline]
-        fn into_tuple(self) -> (Self::S, Self::S, Self::S, Self::S) {
+        fn into_tuple(self) -> (T, T, T, T) {
             (self.x, self.y, self.z, self.w)
         }
     }
 
-    impl<T: Float> FloatVector for XY<T> {
+    impl<T: Float> FloatVector<T> for XY<T> {
         #[inline]
         fn is_nan(self) -> Self::Mask {
             self.map(|a| MASK[a.is_nan() as usize])
@@ -1094,7 +1092,7 @@ mod scalar {
         }
     }
 
-    impl<T: Float> FloatVector for XYZ<T> {
+    impl<T: Float> FloatVector<T> for XYZ<T> {
         #[inline]
         fn is_nan(self) -> Self::Mask {
             self.map(|a| MASK[a.is_nan() as usize])
@@ -1136,7 +1134,7 @@ mod scalar {
         }
     }
 
-    impl<T: Float> FloatVector for XYZW<T> {
+    impl<T: Float> FloatVector<T> for XYZW<T> {
         #[inline]
         fn is_nan(self) -> Self::Mask {
             self.map(|a| MASK[a.is_nan() as usize])
@@ -1178,9 +1176,9 @@ mod scalar {
         }
     }
 
-    impl<T: Float> FloatVector3 for XYZ<T> {
+    impl<T: Float> FloatVector3<T> for XYZ<T> {
         #[inline]
-        fn dot(self, other: Self) -> Self::S {
+        fn dot(self, other: Self) -> T {
             (self.x * other.x) + (self.y * other.y) + (self.z * other.z)
         }
 
@@ -1199,12 +1197,12 @@ mod scalar {
         }
 
         #[inline]
-        fn length(self) -> Self::S {
+        fn length(self) -> T {
             self.dot(self).sqrt()
         }
 
         #[inline]
-        fn length_recip(self) -> Self::S {
+        fn length_recip(self) -> T {
             self.length().recip()
         }
 
@@ -1214,9 +1212,9 @@ mod scalar {
         }
     }
 
-    impl<T: Float> FloatVector4 for XYZW<T> {
+    impl<T: Float> FloatVector4<T> for XYZW<T> {
         #[inline]
-        fn dot(self, other: Self) -> Self::S {
+        fn dot(self, other: Self) -> T {
             (self.x * other.x) + (self.y * other.y) + (self.z * other.z) + (self.w * other.w)
         }
 
@@ -1226,12 +1224,12 @@ mod scalar {
         }
 
         #[inline]
-        fn length(self) -> Self::S {
+        fn length(self) -> T {
             self.dot(self).sqrt()
         }
 
         #[inline]
-        fn length_recip(self) -> Self::S {
+        fn length_recip(self) -> T {
             self.length().recip()
         }
 
@@ -1241,11 +1239,11 @@ mod scalar {
         }
     }
 
-    impl Quaternion for XYZW<f32> {
-        // fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self {
+    impl<T: Float>  Quaternion<T> for XYZW<T> {
+        // fn from_axis_angle(axis: XYZ<Scalar>, angle: Scalar) -> Self {
         // }
 
-        // fn to_axis_angle(self) -> (XYZ<Self::S>, Self::S) {
+        // fn to_axis_angle(self) -> (XYZ<Scalar>, Scalar) {
         // }
 
         //fn is_near_identity(self) -> bool {
@@ -1272,37 +1270,35 @@ mod scalar {
             Self::new(-self.x, -self.y, -self.z, self.w)
         }
 
-        fn lerp(self, end: Self, s: Self::S) -> Self {
+        fn lerp(self, end: Self, s: T) -> Self {
             glam_assert!(self.is_normalized());
             glam_assert!(end.is_normalized());
 
             let start = self;
             let end = end;
             let dot = start.dot(end);
-            let bias = if dot >= 0.0 { 1.0 } else { -1.0 };
+            let bias = if dot >= T::ZERO { T::ONE } else { T::NEG_ONE };
             let interpolated = start.add(end.scale(bias).sub(start).scale(s));
             interpolated.normalize()
         }
 
-        fn slerp(self, end: Self, s: Self::S) -> Self {
+        fn slerp(self, end: Self, s: T) -> Self {
             // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
 
             glam_assert!(self.is_normalized());
             glam_assert!(end.is_normalized());
 
-            const DOT_THRESHOLD: f32 = 0.9995;
-
             let dot = self.dot(end);
 
-            if dot > DOT_THRESHOLD {
+            if dot > T::from_f32(0.9995) {
                 // assumes lerp returns a normalized quaternion
                 self.lerp(end, s)
             } else {
                 // assumes scalar_acos clamps the input to [-1.0, 1.0]
                 let theta = dot.acos_approx();
-                let scale1 = f32::sin(theta * (1.0 - s));
-                let scale2 = f32::sin(theta * s);
-                let theta_sin = f32::sin(theta);
+                let scale1 = (theta * (T::ONE - s)).sin();
+                let scale2 = (theta * s).sin();
+                let theta_sin = theta.sin();
 
                 self.scale(scale1)
                     .add(end.scale(scale2))
@@ -1495,8 +1491,7 @@ mod sse2 {
         const UNIT_W: __m128 = const_m128!([0.0, 0.0, 0.0, 1.0]);
     }
 
-    impl Vector for __m128 {
-        type S = f32;
+    impl Vector<f32> for __m128 {
         type Mask = __m128;
 
         #[inline]
@@ -1565,7 +1560,7 @@ mod sse2 {
         }
 
         #[inline]
-        fn scale(self, other: Self::S) -> Self {
+        fn scale(self, other: f32) -> Self {
             unsafe { _mm_mul_ps(self, _mm_set_ps1(other)) }
         }
 
@@ -1580,7 +1575,7 @@ mod sse2 {
         }
 
         #[inline]
-        fn min_element(self) -> Self::S {
+        fn min_element(self) -> f32 {
             unsafe {
                 let v = self;
                 let v = _mm_min_ps(v, _mm_shuffle_ps(v, v, 0b00_00_11_10));
@@ -1590,7 +1585,7 @@ mod sse2 {
         }
 
         #[inline]
-        fn max_element(self) -> Self::S {
+        fn max_element(self) -> f32 {
             unsafe {
                 let v = self;
                 let v = _mm_max_ps(v, _mm_shuffle_ps(v, v, 0b00_00_11_10));
@@ -1600,19 +1595,19 @@ mod sse2 {
         }
     }
 
-    impl Vector3 for __m128 {
+    impl Vector3<f32> for __m128 {
         #[inline]
         fn new(x: f32, y: f32, z: f32) -> Self {
             unsafe { _mm_set_ps(0.0, z, y, x) }
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+        fn from_slice_unaligned(slice: &[f32]) -> Self {
             Vector3::new(slice[0], slice[1], slice[2])
         }
 
         #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+        fn write_to_slice_unaligned(self, slice: &mut [f32]) {
             let xyz = Vector3::deref(&self);
             slice[0] = xyz.x;
             slice[1] = xyz.y;
@@ -1620,13 +1615,13 @@ mod sse2 {
         }
 
         #[inline]
-        fn deref(&self) -> &XYZ<Self::S> {
-            unsafe { &*(self as *const Self as *const XYZ<Self::S>) }
+        fn deref(&self) -> &XYZ<f32> {
+            unsafe { &*(self as *const Self as *const XYZ<f32>) }
         }
 
         #[inline]
-        fn deref_mut(&mut self) -> &mut XYZ<Self::S> {
-            unsafe { &mut *(self as *mut Self as *mut XYZ<Self::S>) }
+        fn deref_mut(&mut self) -> &mut XYZ<f32> {
+            unsafe { &mut *(self as *mut Self as *mut XYZ<f32>) }
         }
 
         #[inline]
@@ -1639,7 +1634,7 @@ mod sse2 {
         }
 
         #[inline]
-        fn into_xyzw(self, w: Self::S) -> XYZW<f32> {
+        fn into_xyzw(self, w: f32) -> XYZW<f32> {
             unsafe {
                 let mut t = _mm_move_ss(self, _mm_set_ss(w));
                 t = _mm_shuffle_ps(t, t, 0b00_10_01_00);
@@ -1649,12 +1644,12 @@ mod sse2 {
         }
 
         #[inline]
-        fn from_array(a: [Self::S; 3]) -> Self {
+        fn from_array(a: [f32; 3]) -> Self {
             unsafe { _mm_loadu_ps(a.as_ptr()) }
         }
 
         #[inline]
-        fn into_array(self) -> [Self::S; 3] {
+        fn into_array(self) -> [f32; 3] {
             let mut out: MaybeUninit<Align16<[f32; 3]>> = MaybeUninit::uninit();
             unsafe {
                 _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
@@ -1663,12 +1658,12 @@ mod sse2 {
         }
 
         #[inline]
-        fn from_tuple(t: (Self::S, Self::S, Self::S)) -> Self {
+        fn from_tuple(t: (f32, f32, f32)) -> Self {
             unsafe { _mm_set_ps(0.0, t.2, t.1, t.0) }
         }
 
         #[inline]
-        fn into_tuple(self) -> (Self::S, Self::S, Self::S) {
+        fn into_tuple(self) -> (f32, f32, f32) {
             let mut out: MaybeUninit<Align16<(f32, f32, f32)>> = MaybeUninit::uninit();
             unsafe {
                 _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
@@ -1677,20 +1672,20 @@ mod sse2 {
         }
     }
 
-    impl Vector4 for __m128 {
+    impl Vector4<f32> for __m128 {
         #[inline]
         fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
             unsafe { _mm_set_ps(w, z, y, x) }
         }
 
         #[inline]
-        fn from_slice_unaligned(slice: &[Self::S]) -> Self {
+        fn from_slice_unaligned(slice: &[f32]) -> Self {
             assert!(slice.len() >= 4);
             unsafe { _mm_loadu_ps(slice.as_ptr()) }
         }
 
         #[inline]
-        fn write_to_slice_unaligned(self, slice: &mut [Self::S]) {
+        fn write_to_slice_unaligned(self, slice: &mut [f32]) {
             unsafe {
                 assert!(slice.len() >= 4);
                 _mm_storeu_ps(slice.as_mut_ptr(), self);
@@ -1698,13 +1693,13 @@ mod sse2 {
         }
 
         #[inline]
-        fn deref(&self) -> &XYZW<Self::S> {
-            unsafe { &*(self as *const Self as *const XYZW<Self::S>) }
+        fn deref(&self) -> &XYZW<f32> {
+            unsafe { &*(self as *const Self as *const XYZW<f32>) }
         }
 
         #[inline]
-        fn deref_mut(&mut self) -> &mut XYZW<Self::S> {
-            unsafe { &mut *(self as *mut Self as *mut XYZW<Self::S>) }
+        fn deref_mut(&mut self) -> &mut XYZW<f32> {
+            unsafe { &mut *(self as *mut Self as *mut XYZW<f32>) }
         }
 
         #[inline]
@@ -1726,12 +1721,12 @@ mod sse2 {
         }
 
         #[inline]
-        fn from_array(a: [Self::S; 4]) -> Self {
+        fn from_array(a: [f32; 4]) -> Self {
             unsafe { _mm_loadu_ps(a.as_ptr()) }
         }
 
         #[inline]
-        fn into_array(self) -> [Self::S; 4] {
+        fn into_array(self) -> [f32; 4] {
             let mut out: MaybeUninit<Align16<[f32; 4]>> = MaybeUninit::uninit();
             unsafe {
                 _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
@@ -1740,12 +1735,12 @@ mod sse2 {
         }
 
         #[inline]
-        fn from_tuple(t: (Self::S, Self::S, Self::S, Self::S)) -> Self {
+        fn from_tuple(t: (f32, f32, f32, f32)) -> Self {
             unsafe { _mm_set_ps(t.3, t.2, t.1, t.0) }
         }
 
         #[inline]
-        fn into_tuple(self) -> (Self::S, Self::S, Self::S, Self::S) {
+        fn into_tuple(self) -> (f32, f32, f32, f32) {
             let mut out: MaybeUninit<Align16<(f32, f32, f32, f32)>> = MaybeUninit::uninit();
             unsafe {
                 _mm_store_ps(out.as_mut_ptr() as *mut f32, self);
@@ -1754,7 +1749,7 @@ mod sse2 {
         }
     }
 
-    impl FloatVector for __m128 {
+    impl FloatVector<f32> for __m128 {
         #[inline]
         fn is_nan(self) -> Self::Mask {
             unsafe { _mm_cmpunord_ps(self, self) }
@@ -1808,7 +1803,7 @@ mod sse2 {
         }
     }
 
-    impl FloatVector3 for __m128 {
+    impl FloatVector3<f32> for __m128 {
         #[inline]
         fn dot(self, other: Self) -> f32 {
             unsafe { _mm_cvtss_f32(dot3_in_x(self, other)) }
@@ -1865,7 +1860,7 @@ mod sse2 {
         }
     }
 
-    impl FloatVector4 for __m128 {
+    impl FloatVector4<f32> for __m128 {
         #[inline]
         fn dot(self, other: Self) -> f32 {
             unsafe { _mm_cvtss_f32(dot4_in_x(self, other)) }
@@ -1905,11 +1900,11 @@ mod sse2 {
         }
     }
 
-    impl Quaternion for __m128 {
-        // fn from_axis_angle(axis: XYZ<Self::S>, angle: Self::S) -> Self {
+    impl Quaternion<f32> for __m128 {
+        // fn from_axis_angle(axis: XYZ<Scalar>, angle: Scalar) -> Self {
         // }
 
-        // fn to_axis_angle(self) -> (XYZ<Self::S>, Self::S) {
+        // fn to_axis_angle(self) -> (XYZ<Scalar>, Scalar) {
         // }
 
         //fn is_near_identity(self) -> bool {
@@ -1937,7 +1932,7 @@ mod sse2 {
             unsafe { _mm_xor_ps(self, SIGN) }
         }
 
-        fn lerp(self, end: Self, s: Self::S) -> Self {
+        fn lerp(self, end: Self, s: f32) -> Self {
             glam_assert!(self.is_normalized());
             glam_assert!(end.is_normalized());
 
@@ -1957,7 +1952,7 @@ mod sse2 {
             }
         }
 
-        fn slerp(self, end: Self, s: Self::S) -> Self {
+        fn slerp(self, end: Self, s: f32) -> Self {
             // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
             use crate::scalar_traits::Float;
 
@@ -2065,3 +2060,23 @@ mod sse2 {
         }
     }
 }
+
+//fn is_near_identity<T: Quaternion<S: Float>>(q: T) -> bool {
+//           // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
+//           const THRESHOLD_ANGLE: f32 = 0.002_847_144_6;
+//           // Because of floating point precision, we cannot represent very small rotations.
+//           // The closest f32 to 1.0 that is not 1.0 itself yields:
+//           // 0.99999994.acos() * 2.0  = 0.000690533954 rad
+//           //
+//           // An error threshold of 1.e-6 is used by default.
+//           // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
+//           // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
+//           //
+//           // We don't really care about the angle value itself, only if it's close to 0.
+//           // This will happen whenever quat.w is close to 1.0.
+//           // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
+//           // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
+//           // the shortest path.
+//           let positive_w_angle = q.deref().w.abs().acos_approx() * 2.0;
+//           positive_w_angle < THRESHOLD_ANGLE
+//}
