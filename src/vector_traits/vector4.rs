@@ -1,5 +1,5 @@
-use crate::{XY, XYZ, XYZW};
 use crate::scalar_traits::Float;
+use crate::{XY, XYZ, XYZW};
 
 const MASK: [u32; 2] = [0, 0xff_ff_ff_ff];
 
@@ -57,7 +57,7 @@ pub trait Vector4Consts: VectorConsts {
     const UNIT_W: Self;
 }
 
-pub trait Vector<T>: Sized {
+pub trait Vector<T>: Sized + Copy + Clone {
     type Mask;
 
     fn splat(s: T) -> Self;
@@ -141,19 +141,93 @@ pub trait FloatVector<T: Float>: Vector<T> {
 
 pub trait FloatVector3<T: Float>: FloatVector<T> + Vector3<T> {
     fn dot(self, other: Self) -> T;
-    fn dot_into_vec(self, other: Self) -> Self;
     fn cross(self, other: Self) -> Self;
-    fn length(self) -> T;
-    fn length_recip(self) -> T;
-    fn normalize(self) -> Self;
+
+    #[inline]
+    fn dot_into_vec(self, other: Self) -> Self {
+        Self::splat(self.dot(other))
+    }
+
+    #[inline]
+    fn length(self) -> T {
+        self.dot(self).sqrt()
+    }
+
+    #[inline]
+    fn length_recip(self) -> T {
+        self.length().recip()
+    }
+
+    #[inline]
+    fn normalize(self) -> Self {
+        self.scale(self.length_recip())
+    }
+
+    #[inline]
+    fn length_squared(self) -> T {
+        self.dot(self)
+    }
+
+    #[inline]
+    fn is_normalized(self) -> bool {
+        // TODO: do something with epsilon
+        (self.length_squared() - T::ONE).abs() <= T::from_f64(1e-6)
+    }
+
+    fn abs_diff_eq(self, other: Self, max_abs_diff: T) -> bool
+    where
+        <Self as Vector<T>>::Mask: MaskVector3,
+    {
+        self.sub(other).abs().cmple(Self::splat(max_abs_diff)).all()
+    }
+
+    fn angle_between(self, other: Self) -> T {
+        self.dot(other)
+            .div(self.length_squared().mul(other.length_squared()).sqrt())
+            .acos_approx()
+    }
 }
 
 pub trait FloatVector4<T: Float>: FloatVector<T> + Vector4<T> {
     fn dot(self, other: Self) -> T;
-    fn dot_into_vec(self, other: Self) -> Self;
-    fn length(self) -> T;
-    fn length_recip(self) -> T;
-    fn normalize(self) -> Self;
+
+    #[inline]
+    fn dot_into_vec(self, other: Self) -> Self {
+        Self::splat(self.dot(other))
+    }
+
+    #[inline]
+    fn length(self) -> T {
+        self.dot(self).sqrt()
+    }
+
+    #[inline]
+    fn length_recip(self) -> T {
+        self.length().recip()
+    }
+
+    #[inline]
+    fn normalize(self) -> Self {
+        self.scale(self.length_recip())
+    }
+
+    #[inline]
+    fn length_squared(self) -> T {
+        self.dot(self)
+    }
+
+    #[inline]
+    fn is_normalized(self) -> bool {
+        // TODO: do something with epsilon
+        (self.length_squared() - T::ONE).abs() <= T::from_f64(1e-6)
+    }
+
+    fn abs_diff_eq(self, other: Self, max_abs_diff: T) -> bool
+    where
+        <Self as Vector<T>>::Mask: MaskVector4,
+    {
+        self.sub(other).abs().cmple(Self::splat(max_abs_diff)).all()
+    }
 }
 
 pub trait Quaternion<T: Float>: FloatVector4<T> {
@@ -183,12 +257,31 @@ pub trait Quaternion<T: Float>: FloatVector4<T> {
         Self::new(x4, y4, z4, w4)
     }
 
+    #[inline]
+    fn from_rotation_x(angle: T) -> Self {
+        let (s, c) = (angle * T::HALF).sin_cos();
+        Self::new(s, T::ZERO, T::ZERO, c)
+    }
+
+    #[inline]
+    fn from_rotation_y(angle: T) -> Self {
+        let (s, c) = (angle * T::HALF).sin_cos();
+        Self::new(T::ZERO, s, T::ZERO, c)
+    }
+
+    #[inline]
+    fn from_rotation_z(angle: T) -> Self {
+        let (s, c) = (angle * T::HALF).sin_cos();
+        Self::new(T::ZERO, T::ZERO, s, c)
+    }
+
     fn to_axis_angle(self) -> (XYZ<T>, T) {
         // const EPSILON: f32 = 1.0e-8;
         // const EPSILON_SQUARED: f32 = EPSILON * EPSILON;
         let (x, y, z, w) = Vector4::into_tuple(self);
         let angle = w.acos_approx() * T::TWO;
         let scale_sq = (T::ONE - w * w).max(T::ZERO);
+        // TODO: constants for epslions?
         if scale_sq >= T::from_f32(1.0e-8 * 1.0e-8) {
             (XYZ { x, y, z }.scale(scale_sq.sqrt().recip()), angle)
         } else {
@@ -197,23 +290,23 @@ pub trait Quaternion<T: Float>: FloatVector4<T> {
     }
 
     fn is_near_identity(self) -> bool {
-           // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
-           let threshold_angle = T::from_f64(0.002_847_144_6);
-           // Because of floating point precision, we cannot represent very small rotations.
-           // The closest f32 to 1.0 that is not 1.0 itself yields:
-           // 0.99999994.acos() * 2.0  = 0.000690533954 rad
-           //
-           // An error threshold of 1.e-6 is used by default.
-           // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
-           // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
-           //
-           // We don't really care about the angle value itself, only if it's close to 0.
-           // This will happen whenever quat.w is close to 1.0.
-           // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
-           // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
-           // the shortest path.
-           let positive_w_angle = self.deref().w.abs().acos_approx() * T::TWO;
-           positive_w_angle < threshold_angle
+        // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
+        let threshold_angle = T::from_f64(0.002_847_144_6);
+        // Because of floating point precision, we cannot represent very small rotations.
+        // The closest f32 to 1.0 that is not 1.0 itself yields:
+        // 0.99999994.acos() * 2.0  = 0.000690533954 rad
+        //
+        // An error threshold of 1.e-6 is used by default.
+        // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
+        // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
+        //
+        // We don't really care about the angle value itself, only if it's close to 0.
+        // This will happen whenever quat.w is close to 1.0.
+        // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
+        // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
+        // the shortest path.
+        let positive_w_angle = self.deref().w.abs().acos_approx() * T::TWO;
+        positive_w_angle < threshold_angle
     }
 
     fn conjugate(self) -> Self;
@@ -1239,32 +1332,12 @@ mod scalar {
         }
 
         #[inline]
-        fn dot_into_vec(self, other: Self) -> Self {
-            Self::splat(self.dot(other))
-        }
-
-        #[inline]
         fn cross(self, other: Self) -> Self {
             Self {
                 x: self.y * other.z - other.y * self.z,
                 y: self.z * other.x - other.z * self.x,
                 z: self.x * other.y - other.x * self.y,
             }
-        }
-
-        #[inline]
-        fn length(self) -> T {
-            self.dot(self).sqrt()
-        }
-
-        #[inline]
-        fn length_recip(self) -> T {
-            self.length().recip()
-        }
-
-        #[inline]
-        fn normalize(self) -> Self {
-            self.scale(self.length_recip())
         }
     }
 
@@ -1273,29 +1346,9 @@ mod scalar {
         fn dot(self, other: Self) -> T {
             (self.x * other.x) + (self.y * other.y) + (self.z * other.z) + (self.w * other.w)
         }
-
-        #[inline]
-        fn dot_into_vec(self, other: Self) -> Self {
-            Self::splat(self.dot(other))
-        }
-
-        #[inline]
-        fn length(self) -> T {
-            self.dot(self).sqrt()
-        }
-
-        #[inline]
-        fn length_recip(self) -> T {
-            self.length().recip()
-        }
-
-        #[inline]
-        fn normalize(self) -> Self {
-            self.scale(self.length_recip())
-        }
     }
 
-    impl<T: Float>  Quaternion<T> for XYZW<T> {
+    impl<T: Float> Quaternion<T> for XYZW<T> {
         // fn from_axis_angle(axis: XYZ<T>, angle: T) -> Self {
         // }
 
@@ -2116,4 +2169,3 @@ mod sse2 {
         }
     }
 }
-

@@ -193,7 +193,7 @@ impl Vec3A {
     /// root operation.
     #[inline]
     pub fn length_squared(self) -> f32 {
-        self.dot(self)
+        FloatVector3::length_squared(self.0)
     }
 
     /// Computes `1.0 / Vec3A::length()`.
@@ -266,15 +266,7 @@ impl Vec3A {
     /// In other words, this computes `[x1 == x2, y1 == y2, z1 == z2, w1 == w2]`.
     #[inline]
     pub fn cmpeq(self, other: Self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmpeq_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.cmpeq(other.0))
-        }
+        Vec3AMask(self.0.cmpeq(other.0))
     }
 
     /// Performs a vertical `!=` comparison between `self` and `other`,
@@ -283,15 +275,7 @@ impl Vec3A {
     /// In other words, this computes `[x1 != x2, y1 != y2, z1 != z2, w1 != w2]`.
     #[inline]
     pub fn cmpne(self, other: Self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmpneq_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.cmpne(other.0))
-        }
+        Vec3AMask(self.0.cmpne(other.0))
     }
 
     /// Performs a vertical `>=` comparison between `self` and `other`,
@@ -300,15 +284,7 @@ impl Vec3A {
     /// In other words, this computes `[x1 >= x2, y1 >= y2, z1 >= z2, w1 >= w2]`.
     #[inline]
     pub fn cmpge(self, other: Self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmpge_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.cmpge(other.0))
-        }
+        Vec3AMask(self.0.cmpge(other.0))
     }
 
     /// Performs a vertical `>` comparison between `self` and `other`,
@@ -317,15 +293,7 @@ impl Vec3A {
     /// In other words, this computes `[x1 > x2, y1 > y2, z1 > z2, w1 > w2]`.
     #[inline]
     pub fn cmpgt(self, other: Self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmpgt_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.cmpgt(other.0))
-        }
+        Vec3AMask(self.0.cmpgt(other.0))
     }
 
     /// Performs a vertical `<=` comparison between `self` and `other`,
@@ -334,15 +302,7 @@ impl Vec3A {
     /// In other words, this computes `[x1 <= x2, y1 <= y2, z1 <= z2, w1 <= w2]`.
     #[inline]
     pub fn cmple(self, other: Self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmple_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.cmple(other.0))
-        }
+        Vec3AMask(self.0.cmple(other.0))
     }
 
     /// Performs a vertical `<` comparison between `self` and `other`,
@@ -351,15 +311,7 @@ impl Vec3A {
     /// In other words, this computes `[x1 < x2, y1 < y2, z1 < z2, w1 < w2]`.
     #[inline]
     pub fn cmplt(self, other: Self) -> Vec3AMask {
-        #[cfg(vec3a_sse2)]
-        unsafe {
-            Vec3AMask(_mm_cmplt_ps(self.0, other.0))
-        }
-
-        #[cfg(vec3a_f32)]
-        {
-            Vec3AMask(self.0.cmplt(other.0))
-        }
+        Vec3AMask(self.0.cmplt(other.0))
     }
 
     /// Creates a `Vec3A` from the first four values in `slice`.
@@ -467,7 +419,7 @@ impl Vec3A {
     /// Uses a precision threshold of `1e-6`.
     #[inline]
     pub fn is_normalized(self) -> bool {
-        is_normalized!(self)
+        FloatVector3::is_normalized(self.0)
     }
 
     /// Returns `true` if, and only if, all elements are finite.
@@ -494,7 +446,7 @@ impl Vec3A {
     /// https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
     #[inline]
     pub fn abs_diff_eq(self, other: Self, max_abs_diff: f32) -> bool {
-        abs_diff_eq!(self, other, max_abs_diff)
+        FloatVector3::abs_diff_eq(self.0, other.0, max_abs_diff)
     }
 
     /// Returns the angle between two vectors, in radians.
@@ -503,7 +455,7 @@ impl Vec3A {
     /// perform a `sqrt`.
     #[inline]
     pub fn angle_between(self, other: Self) -> f32 {
-        crate::f32::funcs::scalar_acos(self.dot(other) / (self.dot(self) * other.dot(other)).sqrt())
+        self.0.angle_between(other.0)
     }
 }
 

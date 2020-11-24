@@ -428,7 +428,7 @@ impl Vec4 {
     /// Uses a precision threshold of `1e-6`.
     #[inline]
     pub fn is_normalized(self) -> bool {
-        is_normalized!(self)
+        FloatVector4::is_normalized(self.0)
     }
 
     /// Returns true if the absolute difference of all elements between `self`
@@ -442,7 +442,7 @@ impl Vec4 {
     /// https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
     #[inline]
     pub fn abs_diff_eq(self, other: Self, max_abs_diff: f32) -> bool {
-        abs_diff_eq!(self, other, max_abs_diff)
+        FloatVector4::abs_diff_eq(self.0, other.0, max_abs_diff)
     }
 }
 

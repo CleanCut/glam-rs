@@ -124,22 +124,19 @@ impl Quat {
     /// Creates a quaternion from the angle (in radians) around the x axis.
     #[inline]
     pub fn from_rotation_x(angle: f32) -> Self {
-        let (s, c) = scalar_sin_cos(angle * 0.5);
-        Self::from_xyzw(s, 0.0, 0.0, c)
+        Self(Inner::from_rotation_x(angle))
     }
 
     /// Creates a quaternion from the angle (in radians) around the y axis.
     #[inline]
     pub fn from_rotation_y(angle: f32) -> Self {
-        let (s, c) = scalar_sin_cos(angle * 0.5);
-        Self::from_xyzw(0.0, s, 0.0, c)
+        Self(Inner::from_rotation_y(angle))
     }
 
     /// Creates a quaternion from the angle (in radians) around the z axis.
     #[inline]
     pub fn from_rotation_z(angle: f32) -> Self {
-        let (s, c) = scalar_sin_cos(angle * 0.5);
-        Self::from_xyzw(0.0, 0.0, s, c)
+        Self(Inner::from_rotation_z(angle))
     }
 
     #[inline]
@@ -298,7 +295,7 @@ impl Quat {
     /// Uses a precision threshold of `1e-6`.
     #[inline]
     pub fn is_normalized(self) -> bool {
-        is_normalized!(self)
+        FloatVector4::is_normalized(self.0)
     }
 
     #[inline]
