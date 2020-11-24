@@ -8,8 +8,8 @@ pub trait MaskVectorConsts {
 }
 
 pub trait MaskVector: MaskVectorConsts {
-    fn and(self, other: Self) -> Self;
-    fn or(self, other: Self) -> Self;
+    fn bitand(self, other: Self) -> Self;
+    fn bitor(self, other: Self) -> Self;
     fn not(self) -> Self;
 }
 
@@ -362,12 +362,12 @@ mod scalar {
 
     impl MaskVector for XY<u32> {
         #[inline]
-        fn and(self, other: Self) -> Self {
+        fn bitand(self, other: Self) -> Self {
             self.map2(other, |a, b| a & b)
         }
 
         #[inline]
-        fn or(self, other: Self) -> Self {
+        fn bitor(self, other: Self) -> Self {
             self.map2(other, |a, b| a | b)
         }
 
@@ -379,12 +379,12 @@ mod scalar {
 
     impl MaskVector for XYZ<u32> {
         #[inline]
-        fn and(self, other: Self) -> Self {
+        fn bitand(self, other: Self) -> Self {
             self.map2(other, |a, b| a & b)
         }
 
         #[inline]
-        fn or(self, other: Self) -> Self {
+        fn bitor(self, other: Self) -> Self {
             self.map2(other, |a, b| a | b)
         }
 
@@ -396,12 +396,12 @@ mod scalar {
 
     impl MaskVector for XYZW<u32> {
         #[inline]
-        fn and(self, other: Self) -> Self {
+        fn bitand(self, other: Self) -> Self {
             self.map2(other, |a, b| a & b)
         }
 
         #[inline]
-        fn or(self, other: Self) -> Self {
+        fn bitor(self, other: Self) -> Self {
             self.map2(other, |a, b| a | b)
         }
 
@@ -1428,12 +1428,12 @@ mod sse2 {
 
     impl MaskVector for __m128 {
         #[inline]
-        fn and(self, other: Self) -> Self {
+        fn bitand(self, other: Self) -> Self {
             unsafe { _mm_and_ps(self, other) }
         }
 
         #[inline]
-        fn or(self, other: Self) -> Self {
+        fn bitor(self, other: Self) -> Self {
             unsafe { _mm_or_ps(self, other) }
         }
 

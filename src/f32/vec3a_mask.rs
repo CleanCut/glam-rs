@@ -120,14 +120,14 @@ impl BitAnd for Vec3AMask {
     type Output = Self;
     #[inline]
     fn bitand(self, other: Self) -> Self {
-        Self(self.0.and(other.0))
+        Self(self.0.bitand(other.0))
     }
 }
 
 impl BitAndAssign for Vec3AMask {
     #[inline]
     fn bitand_assign(&mut self, other: Self) {
-        self.0 = self.0.and(other.0);
+        self.0 = self.0.bitand(other.0);
     }
 }
 
@@ -135,14 +135,14 @@ impl BitOr for Vec3AMask {
     type Output = Self;
     #[inline]
     fn bitor(self, other: Self) -> Self {
-        Self(self.0.or(other.0))
+        Self(self.0.bitor(other.0))
     }
 }
 
 impl BitOrAssign for Vec3AMask {
     #[inline]
     fn bitor_assign(&mut self, other: Self) {
-        self.0 = self.0.or(other.0);
+        self.0 = self.0.bitor(other.0);
     }
 }
 
