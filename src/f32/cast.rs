@@ -1,4 +1,4 @@
-use super::{Mat2, Mat3, Mat4, Quat, Vec2, Vec3, Vec3A, Vec4};
+use crate::{Mat2, Mat3, Mat4, Quat, Vec2, Vec3, Vec3A, Vec4};
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]

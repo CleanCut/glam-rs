@@ -1,4 +1,5 @@
-use super::{scalar_sin_cos, Quat, Vec2, Vec3, Vec3A, Vec3ASwizzles};
+use super::scalar_sin_cos;
+use crate::{Quat, Vec2, Vec3, Vec3A, Vec3ASwizzles, XYZ};
 use core::{
     fmt,
     ops::{Add, Mul, Sub},
@@ -6,9 +7,6 @@ use core::{
 
 #[cfg(feature = "std")]
 use std::iter::{Product, Sum};
-
-const ZERO: Mat3 = const_mat3!([0.0; 9]);
-const IDENTITY: Mat3 = const_mat3!([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
 
 /// Creates a `Mat3` from three column vectors.
 #[inline]
@@ -55,7 +53,7 @@ pub struct Mat3 {
 impl Default for Mat3 {
     #[inline]
     fn default() -> Self {
-        IDENTITY
+        Self::identity()
     }
 }
 
@@ -69,13 +67,21 @@ impl Mat3 {
     /// Creates a 3x3 matrix with all elements set to `0.0`.
     #[inline]
     pub const fn zero() -> Self {
-        ZERO
+        Self {
+            x_axis: Vec3::zero(),
+            y_axis: Vec3::zero(),
+            z_axis: Vec3::zero(),
+        }
     }
 
     /// Creates a 3x3 identity matrix.
     #[inline]
     pub const fn identity() -> Self {
-        IDENTITY
+        Self {
+            x_axis: Vec3::unit_x(),
+            y_axis: Vec3::unit_y(),
+            z_axis: Vec3::unit_z(),
+        }
     }
 
     /// Creates a 3x3 matrix from three column vectors.
@@ -291,21 +297,21 @@ impl Mat3 {
         // #[cfg(vec3a_f32)]
         {
             Self {
-                x_axis: Vec3 {
+                x_axis: Vec3(XYZ {
                     x: self.x_axis.x,
                     y: self.y_axis.x,
                     z: self.z_axis.x,
-                },
-                y_axis: Vec3 {
+                }),
+                y_axis: Vec3(XYZ {
                     x: self.x_axis.y,
                     y: self.y_axis.y,
                     z: self.z_axis.y,
-                },
-                z_axis: Vec3 {
+                }),
+                z_axis: Vec3(XYZ {
                     x: self.x_axis.z,
                     y: self.y_axis.z,
                     z: self.z_axis.z,
-                },
+                }),
             }
         }
     }
@@ -501,7 +507,7 @@ impl<'a> Sum<&'a Self> for Mat3 {
     where
         I: Iterator<Item = &'a Self>,
     {
-        iter.fold(ZERO, |a, &b| Self::add(a, b))
+        iter.fold(Mat3::zero(), |a, &b| Self::add(a, b))
     }
 }
 
@@ -511,6 +517,6 @@ impl<'a> Product<&'a Self> for Mat3 {
     where
         I: Iterator<Item = &'a Self>,
     {
-        iter.fold(IDENTITY, |a, &b| Self::mul(a, b))
+        iter.fold(Mat3::identity(), |a, &b| Self::mul(a, b))
     }
 }

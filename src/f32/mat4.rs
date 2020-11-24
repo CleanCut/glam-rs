@@ -1,7 +1,8 @@
 #[cfg(feature = "num-traits")]
 use num_traits::Float;
 
-use super::{scalar_sin_cos, Mat3, Quat, Vec3, Vec3A, Vec3ASwizzles, Vec4, Vec4Swizzles};
+use super::scalar_sin_cos;
+use crate::{Mat3, Quat, Vec3, Vec3A, Vec3ASwizzles, Vec4, Vec4Swizzles};
 #[cfg(all(vec4_sse2, target_arch = "x86"))]
 use core::arch::x86::*;
 #[cfg(all(vec4_sse2, target_arch = "x86_64"))]

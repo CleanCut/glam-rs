@@ -302,19 +302,19 @@ fn test_vec3mask_select() {
     let a = Vec3::new(1.0, 2.0, 3.0);
     let b = Vec3::new(4.0, 5.0, 6.0);
     assert_eq!(
-        Vec3Mask::new(true, true, true).select(a, b),
+        Vec3::select(Vec3Mask::new(true, true, true), a, b),
         Vec3::new(1.0, 2.0, 3.0),
     );
     assert_eq!(
-        Vec3Mask::new(true, false, true).select(a, b),
+        Vec3::select(Vec3Mask::new(true, false, true), a, b),
         Vec3::new(1.0, 5.0, 3.0),
     );
     assert_eq!(
-        Vec3Mask::new(false, true, false).select(a, b),
+        Vec3::select(Vec3Mask::new(false, true, false), a, b),
         Vec3::new(4.0, 2.0, 6.0),
     );
     assert_eq!(
-        Vec3Mask::new(false, false, false).select(a, b),
+        Vec3::select(Vec3Mask::new(false, false, false), a, b),
         Vec3::new(4.0, 5.0, 6.0),
     );
 }

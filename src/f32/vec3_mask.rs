@@ -1,4 +1,4 @@
-use super::Vec3;
+use crate::Vec3;
 use core::{fmt, ops::*};
 
 /// A 3-dimensional vector mask.

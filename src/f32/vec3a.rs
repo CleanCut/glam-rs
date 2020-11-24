@@ -3,7 +3,7 @@ use num_traits::Float;
 
 use crate::vector_traits::*;
 
-use super::{Vec2, Vec3, Vec3AMask, Vec4};
+use crate::{Vec2, Vec3, Vec3AMask, Vec4};
 use core::{fmt, ops::*};
 
 #[cfg(all(
