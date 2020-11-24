@@ -97,7 +97,7 @@ impl Quat {
     pub fn from_slice_unaligned(slice: &[f32]) -> Self {
         #[allow(clippy::let_and_return)]
         let q = Vector4::from_slice_unaligned(slice);
-        glam_assert!(q.is_normalized());
+        glam_assert!(FloatVector4::is_normalized(q));
         Self(q)
     }
 

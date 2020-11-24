@@ -130,6 +130,9 @@ fn write_swizzle_vec4(out: &mut impl Write) -> Result<()> {
         r#"
 use crate::{{Vec2, Vec3, Vec4}};
 
+#[cfg(vec4_f32)]
+use crate::XYZ;
+
 #[cfg(all(vec4_sse2, target_arch = "x86"))]
 use core::arch::x86::*;
 #[cfg(all(vec4_sse2, target_arch = "x86_64"))]

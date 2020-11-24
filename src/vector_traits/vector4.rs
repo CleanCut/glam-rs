@@ -1380,8 +1380,8 @@ mod scalar {
         }
 
         fn lerp(self, end: Self, s: T) -> Self {
-            glam_assert!(self.is_normalized());
-            glam_assert!(end.is_normalized());
+            glam_assert!(FloatVector4::is_normalized(self));
+            glam_assert!(FloatVector4::is_normalized(end));
 
             let start = self;
             let end = end;
@@ -1394,8 +1394,8 @@ mod scalar {
         fn slerp(self, end: Self, s: T) -> Self {
             // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
 
-            glam_assert!(self.is_normalized());
-            glam_assert!(end.is_normalized());
+            glam_assert!(FloatVector4::is_normalized(self));
+            glam_assert!(FloatVector4::is_normalized(end));
 
             let dot = self.dot(end);
 
@@ -1423,8 +1423,8 @@ mod scalar {
         // }
 
         fn mul_quaternion(self, other: Self) -> Self {
-            glam_assert!(self.is_normalized());
-            glam_assert!(other.is_normalized());
+            glam_assert!(FloatVector4::is_normalized(self));
+            glam_assert!(FloatVector4::is_normalized(other));
             let (x0, y0, z0, w0) = self.into_tuple();
             let (x1, y1, z1, w1) = other.into_tuple();
             Self::new(
@@ -2042,8 +2042,8 @@ mod sse2 {
         }
 
         fn lerp(self, end: Self, s: f32) -> Self {
-            glam_assert!(self.is_normalized());
-            glam_assert!(end.is_normalized());
+            glam_assert!(FloatVector4::is_normalized(self));
+            glam_assert!(FloatVector4::is_normalized(end));
 
             unsafe {
                 const NEG_ZERO: __m128 = const_m128!([-0.0; 4]);
@@ -2065,8 +2065,8 @@ mod sse2 {
             // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
             use crate::scalar_traits::Float;
 
-            glam_assert!(self.is_normalized());
-            glam_assert!(end.is_normalized());
+            glam_assert!(FloatVector4::is_normalized(self));
+            glam_assert!(FloatVector4::is_normalized(end));
 
             const DOT_THRESHOLD: f32 = 0.9995;
 

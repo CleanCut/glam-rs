@@ -493,7 +493,7 @@ macro_rules! impl_vec3 {
         impl fmt::Debug for $vec3 {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 let a = self.as_ref();
-                fmt.debug_tuple("$vec3")
+                fmt.debug_tuple(stringify!($vec3))
                     .field(&a[0])
                     .field(&a[1])
                     .field(&a[2])

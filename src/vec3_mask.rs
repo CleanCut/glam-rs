@@ -140,7 +140,14 @@ macro_rules! impl_vec3mask {
         impl fmt::Debug for $vec3mask {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let arr = self.as_ref();
-                write!(f, "$vec3mask({:#x}, {:#x}, {:#x})", arr[0], arr[1], arr[2])
+                write!(
+                    f,
+                    "{}({:#x}, {:#x}, {:#x})",
+                    stringify!($vec3mask),
+                    arr[0],
+                    arr[1],
+                    arr[2]
+                )
             }
         }
 

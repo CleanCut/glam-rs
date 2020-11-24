@@ -27,6 +27,9 @@ use crate::Align16;
 #[cfg(vec4_sse2)]
 use core::mem::MaybeUninit;
 
+#[cfg(vec4_f32)]
+use crate::XYZ;
+
 use core::{cmp::Ordering, f32};
 
 #[cfg(all(target_feature = "sse2", not(feature = "scalar-math")))]
@@ -663,11 +666,11 @@ impl From<Vec4> for Vec3 {
 
         #[cfg(vec4_f32)]
         {
-            Vec3 {
+            Vec3(XYZ {
                 x: v.x,
                 y: v.y,
                 z: v.z,
-            }
+            })
         }
     }
 }
