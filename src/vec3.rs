@@ -176,7 +176,7 @@ macro_rules! impl_vec3 {
             /// Truncation may also be performed by using `self.xy()` or `Vec2::from()`.
             #[inline]
             pub fn truncate(self) -> Vec2 {
-                Vector3::into_xy(self.0).into()
+                Vec2(Vector3::into_xy(self.0))
             }
 
             /// Computes the dot product of `self` and `other`.
@@ -669,7 +669,7 @@ macro_rules! impl_vec3 {
             /// Creates a `Vec2` from the `x` and `y` elements of the `$vec3`, discarding `z`.
             #[inline]
             fn from(v: $vec3) -> Self {
-                v.into_xy().into()
+                Self(v.into_xy())
             }
         }
 

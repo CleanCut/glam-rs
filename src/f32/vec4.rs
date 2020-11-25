@@ -22,14 +22,6 @@ use core::arch::x86_64::*;
 #[cfg(feature = "std")]
 use std::iter::{Product, Sum};
 
-#[cfg(vec4_sse2)]
-use crate::Align16;
-#[cfg(vec4_sse2)]
-use core::mem::MaybeUninit;
-
-#[cfg(vec4_f32)]
-use crate::XYZ;
-
 use core::{cmp::Ordering, f32};
 
 #[cfg(all(target_feature = "sse2", not(feature = "scalar-math")))]
@@ -654,24 +646,7 @@ impl From<Vec4> for Vec3 {
     /// Creates a `Vec3` from the `x`, `y` and `z` elements of the `Vec4`, discarding `z`.
     #[inline]
     fn from(v: Vec4) -> Self {
-        // TODO: Vec3(Inner)
-        #[cfg(vec4_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<Vec3>> = MaybeUninit::uninit();
-            unsafe {
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Vec3(XYZ {
-                x: v.x,
-                y: v.y,
-                z: v.z,
-            })
-        }
+        Self(v.into_xyz())
     }
 }
 
@@ -679,20 +654,7 @@ impl From<Vec4> for Vec2 {
     /// Creates a `Vec2` from the `x` and `y` elements of the `Vec4`, discarding `z`.
     #[inline]
     fn from(v: Vec4) -> Self {
-        // TODO: Vec3(Inner)
-        #[cfg(vec4_sse2)]
-        {
-            let mut out: MaybeUninit<Align16<Vec2>> = MaybeUninit::uninit();
-            unsafe {
-                _mm_store_ps(out.as_mut_ptr() as *mut f32, v.0);
-                out.assume_init().0
-            }
-        }
-
-        #[cfg(vec4_f32)]
-        {
-            Vec2 { x: v.x, y: v.y }
-        }
+        Self(v.into_xy())
     }
 }
 

@@ -77,7 +77,12 @@ pub trait Vector<T>: Sized + Copy + Clone {
     fn mul_add(self, a: Self, b: Self) -> Self;
     fn sub(self, other: Self) -> Self;
 
-    fn scale(self, other: T) -> Self;
+    fn scale(self, other: T) -> Self {
+        self.mul_scalar(other)
+    }
+
+    fn mul_scalar(self, other: T) -> Self;
+    fn div_scalar(self, other: T) -> Self;
 
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
@@ -139,6 +144,64 @@ pub trait FloatVector<T: Float>: Vector<T> {
     fn signum(self) -> Self;
 }
 
+pub trait FloatVector2<T: Float>: FloatVector<T> + Vector2<T> {
+    fn dot(self, other: Self) -> T;
+
+    #[inline]
+    fn dot_into_vec(self, other: Self) -> Self {
+        Self::splat(self.dot(other))
+    }
+
+    #[inline]
+    fn length(self) -> T {
+        self.dot(self).sqrt()
+    }
+
+    #[inline]
+    fn length_recip(self) -> T {
+        self.length().recip()
+    }
+
+    #[inline]
+    fn normalize(self) -> Self {
+        self.mul_scalar(self.length_recip())
+    }
+
+    #[inline]
+    fn length_squared(self) -> T {
+        self.dot(self)
+    }
+
+    #[inline]
+    fn is_normalized(self) -> bool {
+        // TODO: do something with epsilon
+        (self.length_squared() - T::ONE).abs() <= T::from_f64(1e-6)
+    }
+
+    fn abs_diff_eq(self, other: Self, max_abs_diff: T) -> bool
+    where
+        <Self as Vector<T>>::Mask: MaskVector2,
+    {
+        self.sub(other).abs().cmple(Self::splat(max_abs_diff)).all()
+    }
+
+    fn perp(self) -> Self;
+
+    fn perp_dot(self, other: Self) -> T;
+
+    #[inline]
+    fn angle_between(self, other: Self) -> T {
+        let angle = (self.dot(other) / (self.length_squared() * other.length_squared()).sqrt())
+            .acos_approx();
+
+        if self.perp_dot(other) < T::ZERO {
+            -angle
+        } else {
+            angle
+        }
+    }
+}
+
 pub trait FloatVector3<T: Float>: FloatVector<T> + Vector3<T> {
     fn dot(self, other: Self) -> T;
     fn cross(self, other: Self) -> Self;
@@ -160,7 +223,7 @@ pub trait FloatVector3<T: Float>: FloatVector<T> + Vector3<T> {
 
     #[inline]
     fn normalize(self) -> Self {
-        self.scale(self.length_recip())
+        self.mul_scalar(self.length_recip())
     }
 
     #[inline]
@@ -208,7 +271,7 @@ pub trait FloatVector4<T: Float>: FloatVector<T> + Vector4<T> {
 
     #[inline]
     fn normalize(self) -> Self {
-        self.scale(self.length_recip())
+        self.mul_scalar(self.length_recip())
     }
 
     #[inline]
@@ -234,7 +297,7 @@ pub trait Quaternion<T: Float>: FloatVector4<T> {
     fn from_axis_angle(axis: XYZ<T>, angle: T) -> Self {
         glam_assert!(axis.is_normalized());
         let (s, c) = (angle * T::HALF).sin_cos();
-        let v = axis.scale(s);
+        let v = axis.mul_scalar(s);
         Self::new(v.x, v.y, v.z, c)
     }
 
@@ -283,7 +346,7 @@ pub trait Quaternion<T: Float>: FloatVector4<T> {
         let scale_sq = (T::ONE - w * w).max(T::ZERO);
         // TODO: constants for epslions?
         if scale_sq >= T::from_f32(1.0e-8 * 1.0e-8) {
-            (XYZ { x, y, z }.scale(scale_sq.sqrt().recip()), angle)
+            (XYZ { x, y, z }.mul_scalar(scale_sq.sqrt().recip()), angle)
         } else {
             (Vector3Consts::UNIT_X, angle)
         }
@@ -751,8 +814,14 @@ mod scalar {
             self.map2(other, |a, b| a - b)
         }
 
-        fn scale(self, other: T) -> Self {
+        #[inline]
+        fn mul_scalar(self, other: T) -> Self {
             self.map(|a| a * other)
+        }
+
+        #[inline]
+        fn div_scalar(self, other: T) -> Self {
+            self.map(|a| a / other)
         }
 
         #[inline]
@@ -849,8 +918,13 @@ mod scalar {
         }
 
         #[inline]
-        fn scale(self, other: T) -> Self {
+        fn mul_scalar(self, other: T) -> Self {
             self.map(|a| a * other)
+        }
+
+        #[inline]
+        fn div_scalar(self, other: T) -> Self {
+            self.map(|a| a / other)
         }
 
         #[inline]
@@ -952,8 +1026,14 @@ mod scalar {
             self.map2(other, |a, b| a - b)
         }
 
-        fn scale(self, other: T) -> Self {
+        #[inline]
+        fn mul_scalar(self, other: T) -> Self {
             self.map(|a| a * other)
+        }
+
+        #[inline]
+        fn div_scalar(self, other: T) -> Self {
+            self.map(|a| a / other)
         }
 
         #[inline]
@@ -1325,6 +1405,26 @@ mod scalar {
         }
     }
 
+    impl<T: Float> FloatVector2<T> for XY<T> {
+        #[inline]
+        fn dot(self, other: Self) -> T {
+            (self.x * other.x) + (self.y * other.y)
+        }
+
+        #[inline]
+        fn perp(self) -> Self {
+            Self {
+                x: -self.y,
+                y: self.x,
+            }
+        }
+
+        #[inline]
+        fn perp_dot(self, other: Self) -> T {
+            (self.x * other.y) - (self.y * other.x)
+        }
+    }
+
     impl<T: Float> FloatVector3<T> for XYZ<T> {
         #[inline]
         fn dot(self, other: Self) -> T {
@@ -1387,7 +1487,7 @@ mod scalar {
             let end = end;
             let dot = start.dot(end);
             let bias = if dot >= T::ZERO { T::ONE } else { T::NEG_ONE };
-            let interpolated = start.add(end.scale(bias).sub(start).scale(s));
+            let interpolated = start.add(end.mul_scalar(bias).sub(start).mul_scalar(s));
             interpolated.normalize()
         }
 
@@ -1409,9 +1509,9 @@ mod scalar {
                 let scale2 = (theta * s).sin();
                 let theta_sin = theta.sin();
 
-                self.scale(scale1)
-                    .add(end.scale(scale2))
-                    .scale(theta_sin.recip())
+                self.mul_scalar(scale1)
+                    .add(end.mul_scalar(scale2))
+                    .mul_scalar(theta_sin.recip())
             }
         }
 
@@ -1669,8 +1769,13 @@ mod sse2 {
         }
 
         #[inline]
-        fn scale(self, other: f32) -> Self {
+        fn mul_scalar(self, other: f32) -> Self {
             unsafe { _mm_mul_ps(self, _mm_set_ps1(other)) }
+        }
+
+        #[inline]
+        fn div_scalar(self, other: f32) -> Self {
+            unsafe { _mm_div_ps(self, _mm_set_ps1(other)) }
         }
 
         #[inline]

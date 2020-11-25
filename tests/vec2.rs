@@ -255,11 +255,20 @@ fn test_vec2mask_all() {
 fn test_vec2mask_select() {
     let a = Vec2::new(1.0, 2.0);
     let b = Vec2::new(3.0, 4.0);
-    assert_eq!(Vec2Mask::new(true, true).select(a, b), Vec2::new(1.0, 2.0),);
-    assert_eq!(Vec2Mask::new(true, false).select(a, b), Vec2::new(1.0, 4.0),);
-    assert_eq!(Vec2Mask::new(false, true).select(a, b), Vec2::new(3.0, 2.0),);
     assert_eq!(
-        Vec2Mask::new(false, false).select(a, b),
+        Vec2::select(Vec2Mask::new(true, true), a, b),
+        Vec2::new(1.0, 2.0),
+    );
+    assert_eq!(
+        Vec2::select(Vec2Mask::new(true, false), a, b),
+        Vec2::new(1.0, 4.0),
+    );
+    assert_eq!(
+        Vec2::select(Vec2Mask::new(false, true), a, b),
+        Vec2::new(3.0, 2.0),
+    );
+    assert_eq!(
+        Vec2::select(Vec2Mask::new(false, false), a, b),
         Vec2::new(3.0, 4.0),
     );
 }

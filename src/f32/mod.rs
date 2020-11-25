@@ -40,7 +40,7 @@ pub use vec4::*;
 pub use vec4_mask::*;
 pub use vec4_swizzle::*;
 
-#[derive(Clone, Copy, Default, PartialEq, PartialOrd)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct XYAxes {
     pub x_axis: Vec2,
